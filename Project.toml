@@ -1,0 +1,13 @@
+name = "RegressionDiscontinuity"
+uuid = "5f6169ef-b865-4e89-817c-551391b0abce"
+authors = ["Nikos Ignatiadis <nikos.ignatiadis01@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.4"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
