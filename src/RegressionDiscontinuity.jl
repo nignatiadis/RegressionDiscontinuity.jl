@@ -8,8 +8,11 @@ using DataFrames
 using GLM
 
 using RData
+using RecipesBase
 
 using Statistics
+using StatsBase
+import StatsBase:fit
 using StatsModels
 
 using UnPack
