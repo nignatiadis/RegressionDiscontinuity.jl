@@ -1,5 +1,29 @@
-function ik_bandwidth(Z, Y)
-	rdd_df = DataFrame(Z=Z,Y=Y)
+abstract type BandwidthSelector end 
+
+
+bandwidth(h::Number, kernel, ZsR, Ys) = h
+
+
+struct ImbensKalyanaraman <: BandwidthSelector end 
+
+function kernel_constant(::ImbensKalyanaraman, kernel)
+	kernel = EquivalentKernel(kernel)
+	νs = OffsetVector([kernel_moment(kernel, Val(j)) for j=0:3], 0:3)
+	πs = OffsetVector([squared_kernel_moment(kernel, Val(j)) for j=0:3], 0:3)
+	C1 = 1/4*abs2( (abs2(νs[2]) - νs[1]*νs[3])/(νs[2]*νs[0]-abs2(νs[1])))
+	C2_num = abs2(νs[2])*πs[0] - 2*νs[1]*νs[2]*πs[1] + abs2(νs[1])*πs[2]
+	C2_denom = abs2(νs[2]*νs[0] - abs2(νs[1]))
+	C2 = C2_num / C2_denom
+	(C2/(4*C1))^(1/5)
+	#(πs[0]/abs2(νs[2]))^(1/5)
+end
+
+
+function bandwidth(ik::ImbensKalyanaraman, kernel::SupportedKernels, ZsR::RunningVariable, Ys) 
+	Z = ZsR.Zs
+	Y = Ys
+	
+	rdd_df = DataFrame(Z=Z, Y=Y)
 
 	N = length(Z)
 	left_idx  = findall(Z .< 0)
@@ -49,7 +73,7 @@ function ik_bandwidth(Z, Y)
 	r̂_left = 2160*sd_Y_h₁_left^2/N_h₂_left/h₂_left^4
 	r̂_right = 2160*sd_Y_h₁_right^2/N_h₂_right/h₂_right^4
 
-	Ckernel = 3.4375
+	Ckernel = kernel_constant(ik, kernel)# 3.4375
 
 	regularized_squared_diff = abs2(m̂₀_double_prime_right - m̂₀_double_prime_left) + r̂_left + r̂_right
 	ĥ_IK = Ckernel*( (sd_Y_h₁_left^2 + sd_Y_h₁_right^2)/f̂₀/regularized_squared_diff)^(1/5)*N^(-1/5)

@@ -17,5 +17,5 @@ tmp_df = DataFrame(Ws = ZsR.Ws, Zs = ZsR.Zs)
 
 
 Ys = rand(1000)
-rdd_data = RDData(Ys, ZsR)
+rdd_data = RegressionDiscontinuity.RDData(Ys, ZsR)
 myfit = fit(LinearModel, @formula( Ys ~ Zs + Ws), rdd_data)

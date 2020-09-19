@@ -1,18 +1,26 @@
 module RegressionDiscontinuity
 
-import Base:size,getindex
+using Reexport 
+
+import Base:size,getindex,getproperty,propertynames
 import CodecBzip2
 
 using DataFrames
-using Distributions
+@reexport using Distributions
+using FastGaussQuadrature
+
+using LinearAlgebra
 
 using GLM
+
+using OffsetArrays
+using QuadGK
 
 using RData
 using RecipesBase
 
 using Statistics
-using StatsBase
+@reexport using StatsBase
 import StatsBase:fit
 using StatsModels
 
@@ -23,12 +31,15 @@ using UnPack
 
 include("running_variable.jl")
 include("load_example_data.jl")
-include("imbens_kalyanaraman.jl")
 include("kernels.jl")
+include("imbens_kalyanaraman.jl")
 
 export RunningVariable,
-	   load_rdd_data
-       ik_bandwidth,
-	   Rectangular
+	   Treated,
+	   Untreated,
+	   load_rdd_data,
+	   Rectangular,
+       bandwidth,
+	   ImbensKalyanaraman
 
 end

@@ -74,8 +74,10 @@ function fit(::Type{Histogram{T}}, ZsR::RunningVariable; nbins=StatsBase.sturges
 end
 
 
-@recipe function f(ZsR::RunningVariable; nbins = StatsBase.sturges(length(ZsR)))
-   n = length(ZsR)
+@recipe function f(ZsR::RunningVariable)
+	
+   nbins = get(plotattributes, :bins,  StatsBase.sturges(length(ZsR)))
+
    fitted_hist = fit(Histogram, ZsR; nbins=nbins)
    
    yguide --> "Frequency"
@@ -124,3 +126,23 @@ Tables.columns(rdd_data::RDData) = merge((Ys = rdd_data.Ys,), Tables.columns(rdd
 function Tables.schema(rdd_data::RDData) 
     Tables.Schema((:Ys, :Ws, :Zs), (eltype(rdd_data.Ys), eltype(rdd_data.ZsR.Ws), eltype(rdd_data.ZsR.Zs)))
 end
+
+
+function Base.getproperty(obj::RDData, sym::Symbol)
+     if sym in (:Ys, :ZsR)
+         return getfield(obj, sym)
+     else 
+         return getfield(obj.ZsR, sym)
+     end
+end
+
+function Base.propertynames(obj::RDData)
+   (Base.fieldnames(typeof(obj))..., Base.fieldnames(typeof(obj.ZsR))...)
+end
+
+
+
+abstract type RDDIndexing end
+	
+struct Treated <: RDDIndexing end
+struct Untreated <: RDDIndexing end 
