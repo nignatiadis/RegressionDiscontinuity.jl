@@ -31,6 +31,21 @@ Base.@propagate_inbounds function Base.getindex(ZsR::RunningVariable, x::Int)
     return ret
 end
 
+Base.@propagate_inbounds function Base.getindex(ZsR::RunningVariable, i::AbstractArray) 
+    @boundscheck checkbounds(ZsR, i)
+    @inbounds Zs = ZsR.Zs[i]
+    RunningVariable(Zs, ZsR.cutoff, ZsR.treated)
+end
+
+# Tables interface
+
+Tables.istable(ZsR::RunningVariable) = true 
+Tables.columnaccess(ZsR::RunningVariable) = true
+Tables.columns(ZsR::RunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs)
+function Tables.schema(ZsR::RunningVariable) 
+    Tables.Schema((:Ws, :Zs), (eltype(ZsR.Ws), eltype(ZsR.Zs)))
+end
+
 
 function fit(::Type{Histogram{T}}, ZsR::RunningVariable; nbins=StatsBase.sturges(length(ZsR))) where {T}
    @unpack cutoff, Zs, treated = ZsR
@@ -71,6 +86,7 @@ end
    thickness_scaling --> 1.7
    linewidth --> 0.3
    ylims --> (0, 1.5 * maximum(fitted_hist.weights))
+   
    @series begin
       fitted_hist
    end
@@ -82,4 +98,29 @@ end
       linewidth := 1.7
       [ZsR.cutoff]
     end
+end
+
+
+
+struct RDData{V, R<:RunningVariable}
+	Ys::V
+	ZsR::R
+end
+
+Base.@propagate_inbounds function Base.getindex(rdd_data::RDData, i::AbstractArray) 
+    @boundscheck checkbounds(rdd_data.Ys, i)
+	@boundscheck checkbounds(rdd_data.ZsR, i)
+
+	@inbounds Ys = rdd_data.Ys[i]
+    @inbounds ZsR = rdd_data.ZsR[i]
+    RDData(Ys, ZsR)
+end
+
+# Tables interface
+
+Tables.istable(::RDData) = true 
+Tables.columnaccess(::RDData) = true
+Tables.columns(rdd_data::RDData) = merge((Ys = rdd_data.Ys,), Tables.columns(rdd_data.ZsR))
+function Tables.schema(rdd_data::RDData) 
+    Tables.Schema((:Ys, :Ws, :Zs), (eltype(rdd_data.Ys), eltype(rdd_data.ZsR.Ws), eltype(rdd_data.ZsR.Zs)))
 end
