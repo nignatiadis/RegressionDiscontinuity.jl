@@ -8,6 +8,27 @@ const LocationScaleDists = Union{Cosine,
 const SupportedKernels = Union{LocationScaleDists, Uniform}
 
 
+
+function setbandwidth(kernel::LocationScaleDists, h::Number)
+	 typeof(kernel)(zero(kernel.μ), h * kernel.σ)
+end
+
+function setbandwidth(kernel::Uniform, h::Number) 
+	@unpack a, b =  kernel
+	if a + b != 0
+		error("Use symmetric Uniform/Rectangular kernel")
+	end 
+	Uniform(a*h, b*h)
+end  
+	
+
+weights(::Uniform, ZsR::RunningVariable) = uweights(length(ZsR))
+weights(D::Distribution, ZsR::RunningVariable) = pdf.(D, ZsR)
+
+
+
+
+
 struct EquivalentKernel{K, ET, T}
    kernel::K #only order 1 for now
    E::ET

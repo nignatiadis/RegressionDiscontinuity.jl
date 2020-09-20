@@ -37,6 +37,9 @@ Base.@propagate_inbounds function Base.getindex(ZsR::RunningVariable, i::Abstrac
     RunningVariable(Zs, ZsR.cutoff, ZsR.treated)
 end
 
+
+
+
 # Tables interface
 
 Tables.istable(ZsR::RunningVariable) = true 
@@ -146,3 +149,9 @@ abstract type RDDIndexing end
 	
 struct Treated <: RDDIndexing end
 struct Untreated <: RDDIndexing end 
+
+function Base.getindex(ZsR::R, i::RealInterval) where R<:Union{RunningVariable, RDData}
+   @unpack lb,ub = i
+   idx =  lb .<= ZsR.Zs .<= ub 
+   Base.getindex(ZsR, idx)
+end

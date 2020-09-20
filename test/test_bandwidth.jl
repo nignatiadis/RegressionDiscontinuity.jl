@@ -84,29 +84,54 @@ regularized_squared_diff = abs2(m̂₀_double_prime_right - m̂₀_double_prime_
 ĥ_IK = Ckernel*( (sd_Y_h₁_left^2 + sd_Y_h₁_right^2)/f̂₀/regularized_squared_diff)^(1/5)*N^(-1/5)
 
 ik_triang_paper = 0.2939
-bw_ik_triang = bandwidth(ImbensKalyanaraman(), SymTriangularDist(), lee08_rdd.ZsR, lee08_rdd.Ys)
+point_est_triang_paper = 0.0799
+se_triang_paper = 0.0083
+
+bw_ik_triang = bandwidth(ImbensKalyanaraman(), SymTriangularDist(), lee08_rdd)
+fit_triang = fit(NaiveLocalLinearRD(kernel=SymTriangularDist(),
+                                 bandwidth=ImbensKalyanaraman()),
+               lee08_rdd)
+
 @test bw_ik_triang ≈ ik_triang_paper atol=0.001
+@test fit_triang.fitted_bandwidth == bw_ik_triang
+@test fit_triang.tau_est ≈ point_est_triang_paper atol=0.001
+@test fit_triang.se_est ≈ se_triang_paper atol=0.001
+
+
 
 @test bw_ik_triang ≈ ĥ_IK atol=0.001
 
 ik_rect_paper = 0.4617
-bw_ik_rect = bandwidth(ImbensKalyanaraman(), Rectangular(), lee08_rdd.ZsR, lee08_rdd.Ys)
+point_est_rect_paper = 0.0806
+se_rect_paper = 0.0087
+
+bw_ik_rect = bandwidth(ImbensKalyanaraman(), Rectangular(), lee08_rdd)
+fit_rect = fit(NaiveLocalLinearRD(kernel=Rectangular(),
+                                 bandwidth=ImbensKalyanaraman()),
+               lee08_rdd)
+
 @test bw_ik_rect ≈ ik_rect_paper atol=0.001
+@test fit_rect.fitted_bandwidth == bw_ik_rect
+@test fit_rect.tau_est ≈ point_est_rect_paper atol=0.001
+@test fit_rect.se_est ≈ se_rect_paper atol=0.001
+
+
+Ys = lee08_rdd.Ys
+ZsR = lee08_rdd.ZsR
+
+bw_kernel = SymTriangularDist(0, bw_ik_triang)
+
+support(bw_kernel)
+
+ZsR[support(bw_kernel)]
 
 
 
-#lot(lee08_rdd.ZsR; bins=50, ylim=600)
-fitted_hist = fit(Histogram, lee08_rdd.ZsR; nbins=40)
+
 
 propertynames(lee08_rdd)
-
-
-
 propertynames(lee08_rdd)
 
-lee08_rdd.Ws
-
-@unpack Ws  = lee08_rdd
 
 
 RegressionDiscontinuity.kernel_constant(ImbensKalyanaraman(), Rectangular())
@@ -115,3 +140,9 @@ RegressionDiscontinuity.kernel_constant(ImbensKalyanaraman(), SymTriangularDist(
 
 #const <- (s$nu0/s$mu2^2)^(1/5)
 
+#using StatsBase
+
+#a = [1.0 2.0 3.0]
+#colnms = ["σ̂"; "Blup"; "Bbbbbq"]
+#rownms = ["Hello"]
+#CoefTable(a,colnms,rownms)

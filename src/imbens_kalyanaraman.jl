@@ -1,7 +1,7 @@
 abstract type BandwidthSelector end 
 
 
-bandwidth(h::Number, kernel, ZsR, Ys) = h
+getbandwidth(h::Number, kernel, rddata) = h
 
 
 struct ImbensKalyanaraman <: BandwidthSelector end 
@@ -19,9 +19,9 @@ function kernel_constant(::ImbensKalyanaraman, kernel)
 end
 
 
-function bandwidth(ik::ImbensKalyanaraman, kernel::SupportedKernels, ZsR::RunningVariable, Ys) 
-	Z = ZsR.Zs
-	Y = Ys
+function bandwidth(ik::ImbensKalyanaraman, kernel::SupportedKernels, rddata::RDData) 
+	Z = rddata.ZsR.Zs
+	Y = rddata.Ys
 	
 	rdd_df = DataFrame(Z=Z, Y=Y)
 

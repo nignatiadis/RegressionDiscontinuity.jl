@@ -20,8 +20,9 @@ using RData
 using RecipesBase
 
 using Statistics
+import Statistics:var
 @reexport using StatsBase
-import StatsBase:fit
+import StatsBase:fit, weights
 using StatsModels
 
 using Tables
@@ -33,6 +34,7 @@ include("running_variable.jl")
 include("load_example_data.jl")
 include("kernels.jl")
 include("imbens_kalyanaraman.jl")
+include("local_linear.jl")
 
 export RunningVariable,
 	   Treated,
@@ -40,6 +42,10 @@ export RunningVariable,
 	   load_rdd_data,
 	   Rectangular,
        bandwidth,
-	   ImbensKalyanaraman
+	   ImbensKalyanaraman,
+	   linearweights,
+	   EickerHuberWhite,
+	   NaiveLocalLinearRD
+
 
 end
