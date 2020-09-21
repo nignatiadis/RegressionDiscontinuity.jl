@@ -15,7 +15,7 @@
 
 
 ```julia:ex
-using DataFrames, RegressionDiscontinuity
+using DataFrames, RegressionDiscontinuity, Plots
 lee08 = load_rdd_data(:lee08) |> DataFrame
 first(lee08, 3)
 ```
