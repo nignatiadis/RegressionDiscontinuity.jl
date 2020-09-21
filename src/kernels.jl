@@ -1,10 +1,18 @@
 Rectangular() = Uniform(-0.5,+0.5)
 
+function _string(kernel::Uniform)
+	@unpack a,b = kernel
+	"Rectangular kernel (U[$a,$b])"
+end 
+
 const LocationScaleDists = Union{Cosine,
 							     Epanechnikov,
                                  SymTriangularDist,
 							     Triweight}
-							 
+
+_string(kernel::SymTriangularDist) = "Triangular kernel"
+_string(kernel::LocationScaleDists) = "$(Base.typename(typeof(kernel))) kernel"
+	 
 const SupportedKernels = Union{LocationScaleDists, Uniform}
 
 

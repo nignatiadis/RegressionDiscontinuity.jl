@@ -5,6 +5,7 @@ abstract type SharpRD end
 abstract type VarianceEstimator end
 
 struct EickerHuberWhite <: VarianceEstimator end 
+_string(::EickerHuberWhite) = "Eicker White Huber variance"
 
 Base.@kwdef struct NaiveLocalLinearRD{K, B, V<:VarianceEstimator} <: SharpRD
 	kernel::K
@@ -54,6 +55,11 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData)
 	se_est = sqrt(var(variance, fitted_lm))
 	γs = linearweights(fitted_lm)
 	
+	res = [h tau_est se_est "unaccounted"]
+	colnms = ["h"; "τ̂"; "se"; "bias"]
+	rownms = ["Sharp RD estimand"]
+	coeftbl = CoefTable(res,colnms,rownms)
+	
 	FittedLocalLinearRD(rdd_setting = method, 
 	                     fitted_lm = fitted_lm,
 						 fitted_kernel = fitted_kernel,
@@ -61,8 +67,18 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData)
 						 data_subset = rddata_filt,
 						 tau_est = tau_est,
 						 se_est = se_est,
-						 coeftable = nothing)
+						 coeftable = coeftbl)
 end
 
 
 
+
+
+function Base.show(io::IO, rdd_fit::RegressionDiscontinuity.FittedLocalLinearRD)
+   println(io, "Local linear regression for regression discontinuity design")
+   println(io, "       ⋅⋅⋅⋅ "*"Naive inference (not accounting for bias)")
+   println(io, "       ⋅⋅⋅⋅ "*_string(rdd_fit.rdd_setting.kernel))
+   println(io, "       ⋅⋅⋅⋅ "*_string(rdd_fit.rdd_setting.bandwidth))
+   println(io, "       ⋅⋅⋅⋅ "*_string(rdd_fit.rdd_setting.variance))
+   Base.show(io, rdd_fit.coeftable)
+end

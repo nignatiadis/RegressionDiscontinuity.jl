@@ -2,7 +2,7 @@ module RegressionDiscontinuity
 
 using Reexport 
 
-import Base:size,getindex,getproperty,propertynames
+import Base:size,getindex,getproperty,propertynames,show
 import CodecBzip2
 
 using DataFrames

@@ -1,10 +1,12 @@
 abstract type BandwidthSelector end 
 
 
-getbandwidth(h::Number, kernel, rddata) = h
-
+bandwidth(h::Number, kernel, rddata) = h
+_string(::Number)="" 
 
 struct ImbensKalyanaraman <: BandwidthSelector end 
+
+_string(::ImbensKalyanaraman)="Imbens Kalyanaraman bandwidth"
 
 function kernel_constant(::ImbensKalyanaraman, kernel)
 	kernel = EquivalentKernel(kernel)
