@@ -16,6 +16,7 @@
 
 ```julia:ex
 using DataFrames, RegressionDiscontinuity, Plots
+ENV["GKSwstype"] = "nul"  #hide
 lee08 = load_rdd_data(:lee08) |> DataFrame
 first(lee08, 3)
 ```
