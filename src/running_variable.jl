@@ -24,6 +24,7 @@ end
 RunningVariable(Zs; cutoff=0.0, treated = :≥) = RunningVariable(Zs, cutoff, treated)
 
 Base.size(ZsR::RunningVariable) = Base.size(ZsR.Zs)
+StatsBase.nobs(ZsR::RunningVariable) = length(ZsR)
 
 Base.@propagate_inbounds function Base.getindex(ZsR::RunningVariable, x::Int)
     @boundscheck checkbounds(ZsR.Zs, x)
@@ -112,6 +113,8 @@ struct RDData{V, R<:RunningVariable}
 	ZsR::R
 end
 
+StatsBase.nobs(rdd_data::RDData) = nobs(rdd_data.ZsR)
+
 Base.@propagate_inbounds function Base.getindex(rdd_data::RDData, i::AbstractArray) 
     @boundscheck checkbounds(rdd_data.Ys, i)
 	@boundscheck checkbounds(rdd_data.ZsR, i)
@@ -154,4 +157,83 @@ function Base.getindex(ZsR::R, i::RealInterval) where R<:Union{RunningVariable, 
    @unpack lb,ub = i
    idx =  lb .<= ZsR.Zs .<= ub 
    Base.getindex(ZsR, idx)
+end
+
+
+
+
+
+@recipe function f(ZsR::RunningVariable,  Ys::AbstractVector)
+	RDData(ZsR, Ys)
+end
+
+#-------------------------------------------------------
+# include this temporarily, from Plots.jl codebase
+# until issue 2360 is resolved
+error_tuple(x) = x, x
+error_tuple(x::Tuple) = x
+_cycle(v::AbstractVector, idx::Int) = v[mod(idx, axes(v,1))]
+_cycle(v, idx::Int) = v
+
+nanappend!(a::AbstractVector, b) = (push!(a, NaN); append!(a, b))
+
+function error_coords(errorbar, errordata, otherdata...)
+    ed = Vector{Float64}(undef, 0)
+    od = [Vector{Float64}(undef, 0) for odi in otherdata]
+    for (i, edi) in enumerate(errordata)
+        for (j, odj) in enumerate(otherdata)
+            odi = _cycle(odj, i)
+            nanappend!(od[j], [odi, odi])
+        end
+        e1, e2 = error_tuple(_cycle(errorbar, i))
+        nanappend!(ed, [edi - e1, edi + e2])
+    end
+    return (ed, od...)
+end
+#----------------------------------------------------------
+@recipe function f(rdd_data::RDData)
+	
+	ZsR = rdd_data.ZsR
+   	nbins = get(plotattributes, :bins,  StatsBase.sturges(length(ZsR)))
+	
+   	fitted_hist = fit(Histogram, ZsR; nbins=nbins)
+	zs = StatsBase.midpoints(fitted_hist.edges[1])
+	err_length = (zs[2]-zs[1])/2
+	binidx = StatsBase.binindex.(Ref(fitted_hist), ZsR)
+
+	tmp_df = rdd_data|> DataFrame
+	tmp_df.binidx = binidx
+	tmp_df = combine(groupby(tmp_df, :binidx) , [:Ys => mean, :Ys=>length])
+
+	zs = zs[tmp_df.binidx]
+	ys = tmp_df.Ys_mean
+	
+   	yguide --> "Response"
+   	xguide --> "Running variable"
+   	grid --> false 
+	linecolor --> :grey
+	linewidth --> 1.2
+	thickness_scaling --> 1.7
+	legend --> :outertop
+	background_color_legend --> :transparent
+	foreground_color_legend --> :transparent
+ 
+	zs_scatter, ys_scatter = error_coords(err_length, zs, ys)
+
+	#ylims --> extrema(ys)
+	
+	@series begin
+		label --> "Regressogram"
+		seriestype:= :path
+	  	zs_scatter, ys_scatter
+	end
+	
+   	@series begin
+		label := nothing
+      	seriestype := :vline
+      	linecolor := :purple
+      	linestyle := :dash
+      	linewidth := 1.7
+      	[ZsR.cutoff]
+    end 
 end

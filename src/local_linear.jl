@@ -82,3 +82,24 @@ function Base.show(io::IO, rdd_fit::RegressionDiscontinuity.FittedLocalLinearRD)
    println(io, "       ⋅⋅⋅⋅ "*_string(rdd_fit.rdd_setting.variance))
    Base.show(io, rdd_fit.coeftable)
 end
+
+@recipe function f(rdd_fit::FittedLocalLinearRD; show_local_support=false)
+	sorted_subset = rdd_fit.data_subset |> DataFrame |> df->sort(df, [:Zs])
+	sorted_preds = predict(rdd_fit.fitted_lm, sorted_subset)
+	if show_local_support
+	   @unpack lb,ub = support(rdd_fit.fitted_kernel)
+	   @series begin
+			label := nothing
+	    	seriestype := :vline
+	     	linecolor := :lightgrey
+	      inestyle := :dot
+	      linewidth := 2
+	      [lb;ub]
+	   end 
+	end 
+	seriestype = :path
+	linecolor --> :lightblue
+	linewidth --> 2
+	label --> "Local linear fit"
+	sorted_subset.Zs, sorted_preds
+end

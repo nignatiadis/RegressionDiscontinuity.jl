@@ -22,7 +22,7 @@ using RecipesBase
 using Statistics
 import Statistics:var
 @reexport using StatsBase
-import StatsBase:fit, weights
+import StatsBase:fit, weights, nobs
 using StatsModels
 
 using Tables
