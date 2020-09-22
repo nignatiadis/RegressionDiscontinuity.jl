@@ -164,7 +164,7 @@ end
 
 
 @recipe function f(ZsR::RunningVariable,  Ys::AbstractVector)
-	RDData(ZsR, Ys)
+	RDData(Ys, ZsR)
 end
 
 #-------------------------------------------------------

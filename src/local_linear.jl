@@ -40,7 +40,7 @@ function var(::EickerHuberWhite, fitted_lm::RegressionModel)
 end 
 
 
-fit(method::SharpRD, ZsR::RunningVariable, Y) = fit(method, RDData(ZsR, Y))
+fit(method::SharpRD, ZsR::RunningVariable, Y) = fit(method, RDData(Y, ZsR))
 
 function fit(method::NaiveLocalLinearRD, rddata::RDData)
 	@unpack kernel, variance = method
