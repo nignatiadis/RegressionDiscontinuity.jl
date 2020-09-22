@@ -19,7 +19,7 @@ The latter allows you to plug in values that you would have defined here.
              deployed page to be in a subfolder e.g.: `YourPackage.jl/web/`.
 -->
 @def title       = "RegressionDiscontinuity.jl"
-@def prepath     = "PkgPage.jl"
+@def prepath     = "RegressionDiscontinuity.jl"
 @def description = """
                    Estimation and inference for sharp regression discontinuity designs.
                    """
