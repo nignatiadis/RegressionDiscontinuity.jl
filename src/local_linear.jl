@@ -43,13 +43,18 @@ end
 fit(method::SharpRD, ZsR::RunningVariable, Y) = fit(method, RDData(Y, ZsR))
 
 function fit(method::NaiveLocalLinearRD, rddata::RDData)
+	c = rddata.cutoff
 	@unpack kernel, variance = method
 	h = bandwidth(method.bandwidth, kernel, rddata)
 	fitted_kernel = setbandwidth(kernel, h)
 	
-	rddata_filt = rddata[support(fitted_kernel)]
+	@unpack lb, ub = support(fitted_kernel)
+	new_support = RealInterval(lb + c , ub + c)
+
+	rddata_filt = rddata[new_support]
 	wts = weights(fitted_kernel, rddata_filt.ZsR)
-	fitted_lm = fit(LinearModel, @formula(Ys ~ Ws*Zs), rddata_filt, wts=wts)
+	
+	fitted_lm = fit(LinearModel, @formula(Ys ~ Ws*(Zs-cutoff)), rddata_filt, wts=wts)
 	
 	tau_est = coef(fitted_lm)[2]
 	se_est = sqrt(var(variance, fitted_lm))

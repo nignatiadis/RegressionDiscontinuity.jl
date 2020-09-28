@@ -45,9 +45,9 @@ end
 
 Tables.istable(ZsR::RunningVariable) = true 
 Tables.columnaccess(ZsR::RunningVariable) = true
-Tables.columns(ZsR::RunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs)
+Tables.columns(ZsR::RunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs, cutoff= fill(ZsR.cutoff, nobs(ZsR)))
 function Tables.schema(ZsR::RunningVariable) 
-    Tables.Schema((:Ws, :Zs), (eltype(ZsR.Ws), eltype(ZsR.Zs)))
+    Tables.Schema((:Ws, :Zs, :cutoff), (eltype(ZsR.Ws), eltype(ZsR.Zs), typeof(ZsR.cutoff)))
 end
 
 
@@ -130,7 +130,7 @@ Tables.istable(::RDData) = true
 Tables.columnaccess(::RDData) = true
 Tables.columns(rdd_data::RDData) = merge((Ys = rdd_data.Ys,), Tables.columns(rdd_data.ZsR))
 function Tables.schema(rdd_data::RDData) 
-    Tables.Schema((:Ys, :Ws, :Zs), (eltype(rdd_data.Ys), eltype(rdd_data.ZsR.Ws), eltype(rdd_data.ZsR.Zs)))
+    Tables.Schema((:Ys, :Ws, :Zs, :cutoff), (eltype(rdd_data.Ys), eltype(rdd_data.ZsR.Ws), eltype(rdd_data.ZsR.Zs), typeof(cutoff)))
 end
 
 
