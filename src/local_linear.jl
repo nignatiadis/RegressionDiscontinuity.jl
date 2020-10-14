@@ -42,14 +42,14 @@ end
 
 fit(method::SharpRD, ZsR::RunningVariable, Y) = fit(method, RDData(Y, ZsR))
 
-function fit(method::NaiveLocalLinearRD, rddata::RDData)
+function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
     c = rddata.cutoff
     @unpack kernel, variance = method
     h = bandwidth(method.bandwidth, kernel, rddata)
     fitted_kernel = setbandwidth(kernel, h)
 
     @unpack lb, ub = support(fitted_kernel)
-    new_support = RealInterval(lb + c, ub + c)
+    new_support = Interval(lb + c, ub + c)
 
     rddata_filt = rddata[new_support]
     wts = weights(fitted_kernel, rddata_filt.ZsR)
@@ -60,10 +60,17 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData)
     se_est = sqrt(var(variance, fitted_lm))
     γs = linearweights(fitted_lm)
 
-    res = [h tau_est se_est "unaccounted"]
-    colnms = ["h"; "τ̂"; "se"; "bias"]
+    z = tau_est/se_est
+    pval = 1-cdf(Normal(), abs(z))
+    z_quantile = quantile(Normal(), 1-level/2)
+    ci = Interval(tau_est - z_quantile, tau_est + z_quantile)
+    # as in GLM.jl
+    levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+
+    res = [h tau_est se_est "unaccounted" z pval first(ci) last(ci)]
+    colnms = ["h"; "τ̂"; "se"; "bias"; "z"; "p-val"; "Lower $levstr%"; "Upper $levstr%"]
     rownms = ["Sharp RD estimand"]
-    coeftbl = CoefTable(res, colnms, rownms)
+    coeftbl = CoefTable(res, colnms, rownms, 6, 5)
 
     FittedLocalLinearRD(
         rdd_setting = method,

@@ -8,17 +8,13 @@ import CodecBzip2
 using DataFrames
 @reexport using Distributions
 using FastGaussQuadrature
-
+using Intervals
 using LinearAlgebra
-
 using GLM
-
 using OffsetArrays
 using QuadGK
-
 using RData
 using RecipesBase
-
 using Setfield
 using Statistics
 import Statistics: var

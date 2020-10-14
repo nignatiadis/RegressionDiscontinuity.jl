@@ -45,7 +45,7 @@ rect_ll_rd = fit(NaiveLocalLinearRD(kernel=Rectangular(), bandwidth=ImbensKalyan
  ```
  \center{\fig{regressogram_plus_llfit}}
  
- Let zoom in on the support of the local kernel and also with more refined regerssogram:
+ Let's zoom in on the support of the local kernel and also with more refined regressogram:
  
  ```julia:ex
 local_regressogram = plot(rect_ll_rd.data_subset; bins=40, background_color="#f3f6f9", size=(700,400), legend=:bottomright)

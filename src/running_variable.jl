@@ -191,9 +191,8 @@ abstract type RDDIndexing end
 struct Treated <: RDDIndexing end
 struct Untreated <: RDDIndexing end
 
-function Base.getindex(ZsR::R, i::RealInterval) where {R<:Union{RunningVariable,RDData}}
-    @unpack lb, ub = i
-    idx = lb .<= ZsR.Zs .<= ub
+function Base.getindex(ZsR::R, i::Interval) where {R<:Union{RunningVariable,RDData}}
+    idx = in.(ZsR.Zs, i)
     Base.getindex(ZsR, idx)
 end
 
