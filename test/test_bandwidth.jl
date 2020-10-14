@@ -1,4 +1,3 @@
-import CodecBzip2
 
 using DataFrames
 
@@ -6,7 +5,7 @@ using GLM
 
 using UnPack
 
-using RData
+using Feather
 using RegressionDiscontinuity
 
 using Statistics
@@ -15,9 +14,8 @@ using StatsModels
 
 using Test
 
-lee08_path = joinpath(dirname(@__FILE__), "..", "data", "lee08.rda")
-
-lee08 = load(lee08_path)["lee08"]
+lee08_path = joinpath(dirname(@__FILE__), "..", "data", "lee08.feather")
+lee08 = Feather.read(lee08_path)["lee08"]
 
 lee08_rdd = load_rdd_data(:lee08)
 
