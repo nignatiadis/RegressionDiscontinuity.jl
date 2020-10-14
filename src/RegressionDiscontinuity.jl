@@ -1,6 +1,6 @@
 module RegressionDiscontinuity
 
-using Reexport 
+using Reexport
 
 import Base:size,getindex,getproperty,propertynames,show
 import CodecBzip2
@@ -19,6 +19,7 @@ using QuadGK
 using RData
 using RecipesBase
 
+using Setfield
 using Statistics
 import Statistics:var
 @reexport using StatsBase

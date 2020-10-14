@@ -19,7 +19,7 @@ lee08_path = joinpath(dirname(@__FILE__),
                             "..",
                             "data",
                             "lee08.rda")
-                            
+
 lee08 = load(lee08_path)["lee08"]
 
 lee08_rdd = load_rdd_data(:lee08)
@@ -27,7 +27,7 @@ lee08_rdd = load_rdd_data(:lee08)
 
 Z = lee08.margin ./ 100
 Y = lee08.voteshare ./ 100
- 
+
 rdd_df = DataFrame(Z=Z,Y=Y)
 
 N = length(Z)
@@ -37,7 +37,7 @@ N_left = length(left_idx)
 N_right = length(right_idx)
 
 # Step 1: Density and conditional variance at 0
-h₁ = 1.84 * std(Z) * N^(-1/5) 
+h₁ = 1.84 * std(Z) * N^(-1/5)
 
 h₁_left_idx  = findall(-h₁ .<= Z .< 0)
 h₁_right_idx = findall(+h₁ .>= Z .>= 0)
@@ -50,15 +50,15 @@ sd_Y_h₁_left = std(Y[h₁_left_idx])
 Ȳ_h₁_right = mean(Y[h₁_right_idx])
 sd_Y_h₁_right = std(Y[h₁_right_idx])
 
-f̂₀ = (N_h₁_left + N_h₁_right)/2/N/h₁ 
+f̂₀ = (N_h₁_left + N_h₁_right)/2/N/h₁
 
 # Step 2: Estimation of second derivatives
 global_cubic_lm = lm(@formula(Y~1 + (Z>=0) + Z + Z^2 + Z^3), rdd_df)
 
 m̂₀_triple_prime =  6*coef(global_cubic_lm)[5]
 
-h₂_left  = 3.56 * (sd_Y_h₁_left^2/f̂₀/m̂₀_triple_prime^2)^(1/7) * N_left^(-1/7) 
-h₂_right = 3.56 * (sd_Y_h₁_right^2/f̂₀/m̂₀_triple_prime^2)^(1/7) * N_right^(-1/7) 
+h₂_left  = 3.56 * (sd_Y_h₁_left^2/f̂₀/m̂₀_triple_prime^2)^(1/7) * N_left^(-1/7)
+h₂_right = 3.56 * (sd_Y_h₁_right^2/f̂₀/m̂₀_triple_prime^2)^(1/7) * N_right^(-1/7)
 
 h₂_left_idx  = findall(-h₂_left .<= Z .< 0)
 h₂_right_idx = findall(+h₂_right .>= Z .>= 0)
@@ -136,13 +136,3 @@ propertynames(lee08_rdd)
 
 RegressionDiscontinuity.kernel_constant(ImbensKalyanaraman(), Rectangular())
 RegressionDiscontinuity.kernel_constant(ImbensKalyanaraman(), SymTriangularDist())
-
-
-#const <- (s$nu0/s$mu2^2)^(1/5)
-
-#using StatsBase
-
-#a = [1.0 2.0 3.0]
-#colnms = ["σ̂"; "Blup"; "Bbbbbq"]
-#rownms = ["Hello"]
-#CoefTable(a,colnms,rownms)
