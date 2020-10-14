@@ -3,17 +3,16 @@ module RegressionDiscontinuity
 using Reexport
 
 import Base: size, getindex, getproperty, propertynames, show
-import CodecBzip2
 
 using DataFrames
 @reexport using Distributions
 using FastGaussQuadrature
+using Feather
 using Intervals
 using LinearAlgebra
 using GLM
 using OffsetArrays
 using QuadGK
-using RData
 using RecipesBase
 using Setfield
 using Statistics
