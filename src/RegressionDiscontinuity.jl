@@ -2,7 +2,7 @@ module RegressionDiscontinuity
 
 using Reexport
 
-import Base:size,getindex,getproperty,propertynames,show
+import Base: size, getindex, getproperty, propertynames, show
 import CodecBzip2
 
 using DataFrames
@@ -21,9 +21,9 @@ using RecipesBase
 
 using Setfield
 using Statistics
-import Statistics:var
+import Statistics: var
 @reexport using StatsBase
-import StatsBase:fit, weights, nobs
+import StatsBase: fit, weights, nobs
 using StatsModels
 
 using Tables
@@ -38,15 +38,15 @@ include("imbens_kalyanaraman.jl")
 include("local_linear.jl")
 
 export RunningVariable,
-	   Treated,
-	   Untreated,
-	   load_rdd_data,
-	   Rectangular,
-       bandwidth,
-	   ImbensKalyanaraman,
-	   linearweights,
-	   EickerHuberWhite,
-	   NaiveLocalLinearRD
+    Treated,
+    Untreated,
+    load_rdd_data,
+    Rectangular,
+    bandwidth,
+    ImbensKalyanaraman,
+    linearweights,
+    EickerHuberWhite,
+    NaiveLocalLinearRD
 
 
 end

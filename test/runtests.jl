@@ -5,4 +5,3 @@ using Test
     include("test_runningvariable.jl")
     include("test_bandwidth.jl")
 end
-
