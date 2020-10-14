@@ -15,7 +15,7 @@ using StatsModels
 using Test
 
 lee08_path = joinpath(dirname(@__FILE__), "..", "data", "lee08.feather")
-lee08 = Feather.read(lee08_path)["lee08"]
+lee08 = Feather.read(lee08_path)
 
 lee08_rdd = load_rdd_data(:lee08)
 
