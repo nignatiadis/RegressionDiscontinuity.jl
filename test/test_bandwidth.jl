@@ -126,7 +126,7 @@ bw_kernel = SymTriangularDist(0, bw_ik_triang)
 
 support(bw_kernel)
 
-ZsR[support(bw_kernel)]
+#ZsR[support(bw_kernel)]
 
 
 
