@@ -25,7 +25,7 @@ jobs:
     - name: Install Julia
       uses: julia-actions/setup-julia@v1
       with:
-        version: 1.4
+        version: 1.5
     # NOTE
     # Adjust the `input=""` on the last line to indicate where
     # the source of the package page is (`page/` by default).
@@ -39,7 +39,6 @@ jobs:
     - run: julia -e '
             using Pkg;
             Pkg.add(["NodeJS", "PkgPage", "DataFrames", "Plots"]);
-            Pkg.add(PackageSpec(url="https://github.com/nignatiadis/RegressionDiscontinuity.jl"));
             using NodeJS;
             run(`$(npm_cmd()) install highlight.js purgecss`);
             import PkgPage;
