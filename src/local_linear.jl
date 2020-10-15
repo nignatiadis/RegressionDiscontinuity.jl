@@ -63,7 +63,7 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
     z = tau_est/se_est
     pval = 1-cdf(Normal(), abs(z))
     z_quantile = quantile(Normal(), 1-level/2)
-    ci = Interval(tau_est - z_quantile, tau_est + z_quantile)
+    ci = Interval(tau_est - se_est*z_quantile, tau_est + se_est*z_quantile)
     # as in GLM.jl
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
 
