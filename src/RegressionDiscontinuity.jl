@@ -9,6 +9,7 @@ using DataFrames
 using FastGaussQuadrature
 using Feather
 using Intervals
+using JuMP
 using LinearAlgebra
 using GLM
 using OffsetArrays
@@ -20,7 +21,7 @@ import Statistics: var
 @reexport using StatsBase
 import StatsBase: fit, weights, nobs
 using StatsModels
-
+using Suppressor
 using Tables
 
 using UnPack
@@ -31,6 +32,7 @@ include("load_example_data.jl")
 include("kernels.jl")
 include("imbens_kalyanaraman.jl")
 include("local_linear.jl")
+include("minmax_optimal.jl")
 
 export RunningVariable,
     Treated,
@@ -41,7 +43,6 @@ export RunningVariable,
     ImbensKalyanaraman,
     linearweights,
     EickerHuberWhite,
-    NaiveLocalLinearRD
-
-
+    NaiveLocalLinearRD,
+    MinMaxOptRD
 end
