@@ -7,10 +7,13 @@ end
 Base.@kwdef struct FittedMinMaxOptRD
 	tau_est::AbstractFloat
     se_est::AbstractFloat
+	ci::Array{Float64}
     weights::Array{Float64}
+	B::Float64
+	coeftable
 end
 
-#make subtype?
+#TODO: integrate better with running variable
 struct GridRunningVariable
 	ZsR::Centered
 	edges::Array{Float64, 1}
@@ -38,7 +41,7 @@ function GridRunningVariable(ZsR::Centered, num_buckets)
 							   grid_width, binmap, ix_cutoff)
 end
 
-#double check other options for this
+#TODO: allow user to specify?
 function estimate_var(data::RDData)
 	fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * Zs), data)
     yhat = predict(fitted_lm)
@@ -46,13 +49,23 @@ function estimate_var(data::RDData)
 	return σ²
 end
 
+
+function bias_adjusted_gaussian_ci(se; maxbias=0.0, level=0.95)
+    rel_bias = maxbias/se
+    zz = fzero( z-> cdf(Normal(), rel_bias-z) + cdf(Normal(), -rel_bias-z) +  level -1,
+        0, rel_bias - quantile(Normal(),(1- level)/2.1))
+    zz*se
+end
+
 function fit(method::MinMaxOptRD, data::RDData; level=0.95)
 	B = method.B
     xDiscr = GridRunningVariable(center(data.ZsR), method.num_buckets)
     X = xDiscr.values; h = xDiscr.widths; d = length(X); n= xDiscr.weights; ixc = xDiscr.ix_cutoff
-	#to do check the treatment thing
+	#TODO: Incorporate this in gridrunningvariable better
     c = 0.0; W = X .> c
-    σ² = zeros(d) .+ estimate_var(data)
+	sig2 = estimate_var(data)
+	println(sig2)
+    σ² = zeros(d) .+ sig2
     model =  Model(method.solver)
 
     @variable(model, G[1:d])
@@ -83,23 +96,32 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
 
     γ_xx = -value.(G)./(2 .*σ²)
     γ = γ_xx[xDiscr.binmap]
-    #w = x.>0
-    #γ[w.==0] = -γ[w.==0] ./ sum(γ[w.==0])
-    #γ[w.==1] = γ[w.==1] ./ sum(γ[w.==1])
 
+	τ = sum(γ.*data.Ys)
+	maxbias = value(l1)/(2*B)
+	se = sqrt(sum(γ.^2)*sig2)
+	ci = bias_adjusted_gaussian_ci(se; maxbias=maxbias, level=level)
+	ci = [τ - ci, τ + ci]
+	# TODO: make a coefficient table function common with local linear, potentially?
+	levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+	res = [τ se maxbias first(ci) last(ci)]
+    colnms = ["τ̂"; "se"; "max bias"; "Lower $levstr%"; "Upper $levstr%"]
+    rownms = ["Sharp RD estimand"]
+    coeftbl = CoefTable(res, colnms, rownms, 0, 0)
+	# TODO: could potentially make the return object common with  local linear ?
     FittedMinMaxOptRD(
         tau_est = sum(γ.*data.Ys),
-        se_est = 0.0,
-        weights = γ
+        se_est = se,
+		ci = ci,
+        weights = γ,
+		B = B,
+		coeftable = coeftbl
     )
 end
 
 
 function Base.show(io::IO, rdd_fit::RegressionDiscontinuity.FittedMinMaxOptRD)
-    println(io, "Local linear regression for regression discontinuity design")
-    println(io, "       ⋅⋅⋅⋅ " * "Naive inference (not accounting for bias)")
-    println(io, "       ⋅⋅⋅⋅ " * _string(rdd_fit.rdd_setting.kernel))
-    println(io, "       ⋅⋅⋅⋅ " * _string(rdd_fit.rdd_setting.bandwidth))
-    println(io, "       ⋅⋅⋅⋅ " * _string(rdd_fit.rdd_setting.variance))
+    println(io, "Imbens-Wager (2019) optimized regression discontinuity design")
+    println(io, "Max Second Derivative Bound: ", string(rdd_fit.B))
     Base.show(io, rdd_fit.coeftable)
 end

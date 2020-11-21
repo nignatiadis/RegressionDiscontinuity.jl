@@ -15,6 +15,7 @@ using GLM
 using OffsetArrays
 using QuadGK
 using RecipesBase
+using Roots
 using Setfield
 using Statistics
 import Statistics: var
