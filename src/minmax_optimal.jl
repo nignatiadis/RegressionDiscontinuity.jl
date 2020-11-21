@@ -34,9 +34,9 @@ function GridRunningVariable(ZsR::Centered, num_buckets)
 	grid_values = midpoints(grid)
 	grid_width  = grid_values[2:length(grid_values)] .- grid_values[1:(length(grid_values)-1)]
 	ix_cutoff = argmin(abs.(grid_values))
-	binned = fit(Histogram, ZsR, grid)
+	binned = fit(Histogram, ZsR.Zs, grid)
 	grid_weights = binned.weights
-	binmap = StatsBase.binindex.(Ref(binned), ZsR)
+	binmap = StatsBase.binindex.(Ref(binned), ZsR.Zs)
 	return GridRunningVariable(ZsR, grid, grid_values,  grid_weights,
 							   grid_width, binmap, ix_cutoff)
 end
@@ -64,7 +64,6 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
 	#TODO: Incorporate this in gridrunningvariable better
     c = 0.0; W = X .> c
 	sig2 = estimate_var(data)
-	println(sig2)
     σ² = zeros(d) .+ sig2
     model =  Model(method.solver)
 
@@ -95,11 +94,12 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
     end
 
     γ_xx = -value.(G)./(2 .*σ²)
-    γ = γ_xx[xDiscr.binmap]
+    @time γ = γ_xx[xDiscr.binmap]
 
 	τ = sum(γ.*data.Ys)
-	maxbias = value(l1)/(2*B)
+	maxbias = value(l1)
 	se = sqrt(sum(γ.^2)*sig2)
+	#tested: correct
 	ci = bias_adjusted_gaussian_ci(se; maxbias=maxbias, level=level)
 	ci = [τ - ci, τ + ci]
 	# TODO: make a coefficient table function common with local linear, potentially?

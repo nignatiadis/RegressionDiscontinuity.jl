@@ -45,5 +45,6 @@ export RunningVariable,
     linearweights,
     EickerHuberWhite,
     NaiveLocalLinearRD,
-    MinMaxOptRD
+    MinMaxOptRD,
+    RDData
 end

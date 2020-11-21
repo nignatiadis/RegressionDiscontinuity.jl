@@ -44,6 +44,8 @@ end
 
 
 Base.size(ZsR::AbstractRunningVariable) = Base.size(ZsR.Zs)
+Base.maximum(ZsR::AbstractRunningVariable) = Base.maximum(ZsR.Zs)
+Base.minimum(ZsR::AbstractRunningVariable) = Base.minimum(ZsR.Zs)
 StatsBase.nobs(ZsR::AbstractRunningVariable) = length(ZsR)
 
 Base.@propagate_inbounds function Base.getindex(ZsR::AbstractRunningVariable, x::Int)
@@ -140,8 +142,6 @@ struct RDData{V,R<:AbstractRunningVariable}
 end
 
 center(rddata::RDData) = @set rddata.ZsR = center(rddata.ZsR)
-
-
 
 StatsBase.nobs(rdd_data::RDData) = nobs(rdd_data.ZsR)
 
