@@ -67,17 +67,15 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
     σ² = zeros(d) .+ sig2
     model =  Model(method.solver)
 
-    @variable(model, G[1:d])
     @variable(model, f[1:d])
     @variable(model, l1 >=0)
     @variable(model, l2)
     @variable(model, l3)
     @variable(model, l4)
     @variable(model, l5)
+	@variable(model, x)
 
-    for i in 1:d
-        @constraint(model, G[i] == 2*B*f[i] + l2*(1-W[i]) + l3*W[i] + l4*(X[i] - c) + l5*(W[i] - 0.5)*(X[i]-c))
-    end
+	G = @expression(model, 2*B.*f .+ l2.*(1 .-W) + l3.*W +l4.*(X .- c) + l5.*(W .- 0.5).*(X .-c))
 
     @constraint(model, f[ixc]==0)
     @constraint(model, (f[ixc+1] - f[ixc])/h[ixc]== 0)
@@ -87,14 +85,17 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
         @constraint(model, (f[i] - 2*f[i-1] + f[i-2])/(h[i-1]*h[i-2]) + l1 >=0)
     end
 
-    @objective(model, Min, 1/4*(sum(n[i]*G[i]^2/σ²[i] for i in 1:d)) + l1^2 - l2 + l3)
+	qobj = @expression(model, [1/2 .*sqrt.(n).*G ./sqrt.(σ²); l1])
+	@constraint(model, [x; qobj] in SecondOrderCone())
+
+    @objective(model, Min, x^2 - l2 + l3)
 
     @suppress_out begin
         optimize!(model)
     end
 
     γ_xx = -value.(G)./(2 .*σ²)
-    @time γ = γ_xx[xDiscr.binmap]
+    γ = γ_xx[xDiscr.binmap]
 
 	τ = sum(γ.*data.Ys)
 	maxbias = value(l1)

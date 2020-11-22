@@ -5,6 +5,7 @@ struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
     cutoff::C
     treated::Symbol
     Ws::BitArray{1}
+    ZsC::VT
     function RunningVariable{T,C,VT}(Zs::VT, cutoff::C, treated) where {T,C,VT}
         treated = Symbol(treated)
         if treated ∉ [:>; :>=; :≥; :≧; :<; :<=; :≤; :≦]
@@ -15,7 +16,8 @@ struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
             treated = :≤
         end
         Ws = broadcast(getfield(Base, treated), Zs, cutoff)
-        new(Zs, cutoff, treated, Ws)
+        ZsC = Zs .- cutoff
+        new(Zs, cutoff, treated, Ws, ZsC)
     end
 end
 
@@ -24,24 +26,6 @@ function RunningVariable(Zs::VT, cutoff::C, treated) where {C,VT}
 end
 
 RunningVariable(Zs; cutoff = 0.0, treated = :≥) = RunningVariable(Zs, cutoff, treated)
-
-# for internal use
-struct Centered{T,C,VT,RV<:RunningVariable{T,C,VT}} <: AbstractRunningVariable{T,C,VT}
-    ZsR::RV
-end
-
-center(ZsR::RunningVariable) = Centered(ZsR)
-
-function Base.getproperty(obj::Centered, sym::Symbol)
-    _prop = Base.getproperty(Base.getfield(obj, :ZsR), sym)
-    if sym === :Zs
-        return _prop .- obj.cutoff
-    else
-        return _prop
-    end
-end
-
-
 
 Base.size(ZsR::AbstractRunningVariable) = Base.size(ZsR.Zs)
 Base.maximum(ZsR::AbstractRunningVariable) = Base.maximum(ZsR.Zs)
@@ -135,13 +119,10 @@ end
 end
 
 
-
 struct RDData{V,R<:AbstractRunningVariable}
     Ys::V
     ZsR::R
 end
-
-center(rddata::RDData) = @set rddata.ZsR = center(rddata.ZsR)
 
 StatsBase.nobs(rdd_data::RDData) = nobs(rdd_data.ZsR)
 
