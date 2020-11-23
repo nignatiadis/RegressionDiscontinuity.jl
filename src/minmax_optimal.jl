@@ -2,6 +2,7 @@ Base.@kwdef struct MinMaxOptRD <: SharpRD
     B::Float64
 	solver
 	num_buckets = 2000
+	variance = Homoskedastic()
 end
 
 Base.@kwdef struct FittedMinMaxOptRD
@@ -13,6 +14,7 @@ Base.@kwdef struct FittedMinMaxOptRD
 	coeftable
 end
 
+struct Homoskedastic <: VarianceEstimator end
 
 #TODO: allow user to specify?
 function estimate_var(data::RDData)
@@ -28,6 +30,10 @@ function bias_adjusted_gaussian_ci(se; maxbias=0.0, level=0.95)
     zz = fzero( z-> cdf(Normal(), rel_bias-z) + cdf(Normal(), -rel_bias-z) +  level -1,
         0, rel_bias - quantile(Normal(),(1- level)/2.1))
     zz*se
+end
+
+function var(::Homoskedastic, γ::Vector, sig2::Float64)
+	sqrt(sum(γ.^2)*sig2)
 end
 
 function fit(method::MinMaxOptRD, data::RDData; level=0.95)
@@ -67,7 +73,7 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
 
 	τ = sum(γ.*data.Ys)
 	maxbias = value(l1)
-	se = sqrt(sum(γ.^2)*sig2)
+	se = var(method.variance, γ, sig2)
 	ci = bias_adjusted_gaussian_ci(se; maxbias=maxbias, level=level)
 	ci = [τ - ci, τ + ci]
 	# TODO: add p-values and z-values?
