@@ -61,11 +61,7 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
 	@constraint(model, [s; qobj] in SecondOrderCone())
 
     @objective(model, Min, s^2 - l2 + l3)
-
-    @suppress_out begin
-        optimize!(model)
-    end
-
+	optimize!(model)
     γ_xx = -value.(G)./(2 .*σ²)
     γ = γ_xx[ZsD.binmap]
 

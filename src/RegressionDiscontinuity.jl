@@ -22,7 +22,6 @@ import Statistics: var
 @reexport using StatsBase
 import StatsBase: fit, weights, nobs
 using StatsModels
-using Suppressor
 using Tables
 
 using UnPack
