@@ -48,14 +48,40 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 
+struct DiscretizedRunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
+	Zs::VT
+    cutoff::C
+    treated::Symbol
+    Ws::BitArray{1}
+    ZsC::VT
+	weights::Array{Int, 1}
+	h::Array{Float64, 1}
+	binmap::Array{Int, 1}
+
+	function DiscretizedRunningVariable{T, C, VT}(ZsR::RunningVariable{T, C, VT}, nbins::Int) where {T,C,VT}
+		hist = fit(Histogram, ZsR; nbins=nbins)
+		Zs = midpoints(hist.edges...)
+		Ws = broadcast(getfield(Base, ZsR.treated), Zs, ZsR.cutoff)
+		weights = hist.weights
+		h = Zs[2:length(Zs)] .- Zs[1:(length(Zs)-1)]
+		binmap = StatsBase.binindex.(Ref(hist), ZsR.Zs)
+		new(Zs, ZsR.cutoff, ZsR.treated, Ws,
+			Zs .- ZsR.cutoff, weights, h, binmap)
+	end
+end
+
+function DiscretizedRunningVariable(ZsR::RunningVariable{T, C, VT}, nbins::Int) where {T, C,VT}
+    DiscretizedRunningVariable{T,C,VT}(ZsR, nbins)
+end
+
 
 # Tables interface
 
 Tables.istable(ZsR::AbstractRunningVariable) = true
 Tables.columnaccess(ZsR::AbstractRunningVariable) = true
-Tables.columns(ZsR::AbstractRunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs)
+Tables.columns(ZsR::AbstractRunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs, ZsC=ZsR.ZsC)
 function Tables.schema(ZsR::AbstractRunningVariable)
-    Tables.Schema((:Ws, :Zs), (eltype(ZsR.Ws), eltype(ZsR.Zs)))
+    Tables.Schema((:Ws, :Zs, :ZsC), (eltype(ZsR.Ws), eltype(ZsR.Zs), eltype(ZsR.ZsC)))
 end
 
 
@@ -64,7 +90,7 @@ function fit(
     ZsR::AbstractRunningVariable;
     nbins = StatsBase.sturges(length(ZsR)),
 ) where {T}
-    @unpack cutoff, Zs, treated = ZsR
+    @unpack cutoff, Zs, treated, ZsC = ZsR
     if treated in [:<; :≥]
         closed = :left
     else
@@ -84,7 +110,7 @@ function fit(
     breaks_left = reverse(range(cutoff; step = -bin_width, length = nbins_left))
     breaks_right = range(cutoff; step = bin_width, length = nbins_right)
 
-    breaks = collect(sort(unique([breaks_left; breaks_right])))
+    breaks = collect(sort([breaks_left; breaks_right]))
 
     fit(Histogram{T}, ZsR, breaks; closed = closed)
 end
@@ -142,12 +168,13 @@ Tables.columnaccess(::RDData) = true
 Tables.columns(rdd_data::RDData) = merge((Ys = rdd_data.Ys,), Tables.columns(rdd_data.ZsR))
 function Tables.schema(rdd_data::RDData)
     Tables.Schema(
-        (:Ys, :Ws, :Zs, :cutoff),
+        (:Ys, :Ws, :Zs, :cutoff, :ZsC),
         (
             eltype(rdd_data.Ys),
             eltype(rdd_data.ZsR.Ws),
             eltype(rdd_data.ZsR.Zs),
             typeof(cutoff),
+			eltype(rdd_data.ZsR.ZsC)
         ),
     )
 end

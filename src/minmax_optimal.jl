@@ -13,37 +13,10 @@ Base.@kwdef struct FittedMinMaxOptRD
 	coeftable
 end
 
-#TODO: integrate better with running variable
-struct GridRunningVariable
-	ZsR::Centered
-	edges::Array{Float64, 1}
-	values::Array{Float64, 1}
-	weights::Array{Int, 1}
-	widths::Array{Float64, 1}
-	binmap::Array{Int, 1}
-	ix_cutoff::Int
-end
-
-function GridRunningVariable(ZsR::Centered, num_buckets)
-	xmax = maximum(ZsR)
- 	xmin = minimum(ZsR)
-	h = (xmax - xmin)/num_buckets
-	grid = (xmin-h/2):h:(xmax+h)
-	grid = vcat(grid, repeat([0], 2 - sum(grid.==0)))
-	sort!(grid)
-	grid_values = midpoints(grid)
-	grid_width  = grid_values[2:length(grid_values)] .- grid_values[1:(length(grid_values)-1)]
-	ix_cutoff = argmin(abs.(grid_values))
-	binned = fit(Histogram, ZsR.Zs, grid)
-	grid_weights = binned.weights
-	binmap = StatsBase.binindex.(Ref(binned), ZsR.Zs)
-	return GridRunningVariable(ZsR, grid, grid_values,  grid_weights,
-							   grid_width, binmap, ix_cutoff)
-end
 
 #TODO: allow user to specify?
 function estimate_var(data::RDData)
-	fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * Zs), data)
+	fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * ZsC), data)
     yhat = predict(fitted_lm)
     σ² = mean((data.Ys - yhat).^2) * length(data.Zs) / (length(data.Zs) - 4)
 	return σ²
@@ -59,10 +32,9 @@ end
 
 function fit(method::MinMaxOptRD, data::RDData; level=0.95)
 	B = method.B
-    xDiscr = GridRunningVariable(center(data.ZsR), method.num_buckets)
-    X = xDiscr.values; h = xDiscr.widths; d = length(X); n= xDiscr.weights; ixc = xDiscr.ix_cutoff
-	#TODO: Incorporate this in gridrunningvariable better
-    c = 0.0; W = X .> c
+    ZsD = DiscretizedRunningVariable(data.ZsR, method.num_buckets)
+    X = ZsD.Zs; h = ZsD.h; d = length(X); n= ZsD.weights
+    ixc = argmin(abs.(ZsD.Zs .- ZsD.cutoff)); c = ZsD.cutoff; W = ZsD.Ws
 	sig2 = estimate_var(data)
     σ² = zeros(d) .+ sig2
     model =  Model(method.solver)
@@ -73,7 +45,7 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
     @variable(model, l3)
     @variable(model, l4)
     @variable(model, l5)
-	@variable(model, x)
+	@variable(model, s)
 
 	G = @expression(model, 2*B.*f .+ l2.*(1 .-W) + l3.*W +l4.*(X .- c) + l5.*(W .- 0.5).*(X .-c))
 
@@ -86,30 +58,29 @@ function fit(method::MinMaxOptRD, data::RDData; level=0.95)
     end
 
 	qobj = @expression(model, [1/2 .*sqrt.(n).*G ./sqrt.(σ²); l1])
-	@constraint(model, [x; qobj] in SecondOrderCone())
+	@constraint(model, [s; qobj] in SecondOrderCone())
 
-    @objective(model, Min, x^2 - l2 + l3)
+    @objective(model, Min, s^2 - l2 + l3)
 
     @suppress_out begin
         optimize!(model)
     end
 
     γ_xx = -value.(G)./(2 .*σ²)
-    γ = γ_xx[xDiscr.binmap]
+    γ = γ_xx[ZsD.binmap]
 
 	τ = sum(γ.*data.Ys)
 	maxbias = value(l1)
 	se = sqrt(sum(γ.^2)*sig2)
-	#tested: correct
 	ci = bias_adjusted_gaussian_ci(se; maxbias=maxbias, level=level)
 	ci = [τ - ci, τ + ci]
-	# TODO: make a coefficient table function common with local linear, potentially?
+	# TODO: add p-values and z-values?
 	levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
 	res = [τ se maxbias first(ci) last(ci)]
     colnms = ["τ̂"; "se"; "max bias"; "Lower $levstr%"; "Upper $levstr%"]
     rownms = ["Sharp RD estimand"]
     coeftbl = CoefTable(res, colnms, rownms, 0, 0)
-	# TODO: could potentially make the return object common with  local linear ?
+
     FittedMinMaxOptRD(
         tau_est = sum(γ.*data.Ys),
         se_est = se,
