@@ -46,5 +46,6 @@ export RunningVariable,
     EickerHuberWhite,
     Homoskedastic,
     NaiveLocalLinearRD,
-    ImbensWagerOptRD
+    ImbensWagerOptRD,
+    estimate_second_deriv_bound 
 end
