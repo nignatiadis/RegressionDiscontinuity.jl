@@ -32,5 +32,5 @@ Mosek is free for academics. An open source solver option include [Hypatia.jl](h
 using RegressionDiscontinuity, MosekTools
 data = load_rdd_data(:lee08)
 
-result = fit(MinMaxOptRD(B=14.28, solver=Mosek.Optimizer), data)
+result = fit(ImbensWagerOptRD(B=14.28, solver=Mosek.Optimizer), data)
 ```

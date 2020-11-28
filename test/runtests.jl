@@ -4,4 +4,5 @@ using Test
 @testset "RegressionDiscontinuity.jl" begin
     include("test_runningvariable.jl")
     include("test_bandwidth.jl")
+    include("test_minmax.jl")
 end

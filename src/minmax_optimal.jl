@@ -22,6 +22,7 @@ end
 Base.@kwdef struct FittedOptRD
 	tau_est::AbstractFloat
     se_est::AbstractFloat
+	maxbias::AbstractFloat
 	ci::Array{Float64}
     weights::Array{Float64}
 	B::Float64
@@ -59,7 +60,7 @@ Find the min-max optimal RD estimator over a convex class of conditional mean
 functions with a bounded second derivative, based on the numerical optimization
 procedure described in Imbens & Wager (2019).
 
-Returns a FittedOptRD object with fields `tau_est`, `se_est`, `ci`,
+Returns a FittedOptRD object with fields `tau_est`, `se_est`, `maxbias`, `ci`,
 `weights` the RD estimator weights for each observation, `B` the bound on
 the second derivative of the conditional mean functions used in estimation, and
 `coeftable` providing an object of type CoefTable for the estimator.
@@ -113,6 +114,7 @@ function fit(method::ImbensWagerOptRD, data::RDData; level=0.95)
     FittedOptRD(
         tau_est = sum(γ.*data.Ys),
         se_est = se,
+		maxbias = maxbias,
 		ci = ci,
         weights = γ,
 		B = B,

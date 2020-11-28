@@ -35,6 +35,7 @@ include("local_linear.jl")
 include("minmax_optimal.jl")
 
 export RunningVariable,
+    RDData,
     Treated,
     Untreated,
     load_rdd_data,
@@ -43,8 +44,7 @@ export RunningVariable,
     ImbensKalyanaraman,
     linearweights,
     EickerHuberWhite,
-    Homoskedastic, 
+    Homoskedastic,
     NaiveLocalLinearRD,
-    MinMaxOptRD,
-    RDData
+    ImbensWagerOptRD
 end
