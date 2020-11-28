@@ -43,6 +43,7 @@ export RunningVariable,
     ImbensKalyanaraman,
     linearweights,
     EickerHuberWhite,
+    Homoskedastic, 
     NaiveLocalLinearRD,
     MinMaxOptRD,
     RDData
