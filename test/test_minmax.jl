@@ -22,13 +22,3 @@ result_plusminus = result.tau_est - result.ci[1]
 est_plusminus = zz*result.se_est
 
 @test result_plusminus ≈ est_plusminus atol = 0.00001
-
-
-B_result = estimate_second_deriv_bound(data)
-
-y = data.Ys[data.Ws.==0]; x = data.Zs[data.Ws.==0]
-model = lm(@formula(y ~ x + x^2 + x^3 + x^4), DataFrame(y=y, x=x))
-beta = coef(model)
-f2(x) = 2*beta[3] .+ 6*beta[4].*x .+ 12*beta[5]*x.^2
-B = maximum(abs.(f2.(x)))
-@test B_result ≈ B atol = 0.0001

@@ -35,26 +35,6 @@ Variance estimator for the RD estimator that assumes homoskedasticity.
 """
 struct Homoskedastic <: VarianceEstimator end
 
-"""
-    estimate_second_deriv_bound(data::RDData)
-
-Using quartic regression of the outcome variable on the running variable
-separately above and below the cutoff, estimate the maximum bound on the
-second derivative of the conditional mean function of the outcome.
-"""
-function estimate_second_deriv_bound(data::RDData)
-	B0 = quartic_regression_bound(data.Ys[data.Ws.==0], data.Zs[data.Ws.==0])
-	B1 = quartic_regression_bound(data.Ys[data.Ws.==1], data.Zs[data.Ws.==1])
-	return max(B0, B1)
-end
-
-function quartic_regression_bound(y, x)
-	model = lm(@formula(y ~ x + x^2 + x^3 + x^4), DataFrame(y=y, x=x))
-	beta = coef(model)
-    f2(x) = 2*beta[3] .+ 6*beta[4].*x .+ 12*beta[5]*x.^2
-	return maximum(abs.(f2.(x)))
-end
-
 function estimate_var(data::RDData)
 	fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * ZsC), data)
     yhat = predict(fitted_lm)
