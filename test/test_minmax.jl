@@ -1,11 +1,11 @@
 using RegressionDiscontinuity
-using MosekTools
+using Hypatia
 using Roots, Distributions
 using GLM, DataFrames
 using Test
 
 data = load_rdd_data(:lee08)
-result = fit(ImbensWagerOptRD(B=14.28, solver=Mosek.Optimizer,
+result = fit(ImbensWagerOptRD(B=14.28, solver=Hypatia.Optimizer,
                               num_buckets=2000, variance=Homoskedastic()), data)
 
 #test that the result is close to the R package result with the same settings

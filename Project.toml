@@ -43,7 +43,8 @@ UnPack = "1.0"
 julia = "1.4, 1.5"
 
 [extras]
+Hypatia = "b99e6be6-89ff-11e8-14f8-45c827f4f8f2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Hypatia", "Test"]
