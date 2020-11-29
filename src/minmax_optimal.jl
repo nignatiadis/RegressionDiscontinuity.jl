@@ -113,9 +113,9 @@ function fit(method::ImbensWagerOptRD, data::RDData; level=0.95)
     end
 
 	qobj = @expression(model, [1/2 .*sqrt.(n).*G ./sqrt.(σ²); l1])
-	@constraint(model, [s; qobj] in SecondOrderCone())
+	@constraint(model, [0.5; s; qobj] in RotatedSecondOrderCone())
 
-    @objective(model, Min, s^2 - l2 + l3)
+    @objective(model, Min, s - l2 + l3)
 	optimize!(model)
     γ_xx = -value.(G)./(2 .*σ²)
     γ = γ_xx[ZsD.binmap]
