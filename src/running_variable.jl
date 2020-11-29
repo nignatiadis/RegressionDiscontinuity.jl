@@ -1,5 +1,14 @@
 abstract type AbstractRunningVariable{T,C,VT} <: AbstractVector{T} end
 
+
+"""
+    RunningVariable(Zs; cutoff = 0.0, treated = :≥)
+
+Represents the running variable values for data in a regression
+discontinuity setting. The discontinuity is at `cutoff`, and `treated` is one of
+`[:>; :>=; :≥; :≧; :<; :<=; :≤; :≦ ]' and determines the treatment based on the
+running variable value compared to the cutoff.
+"""
 struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
     Zs::VT
     cutoff::C
@@ -144,7 +153,11 @@ end
     end
 end
 
+"""
+    RDData(Ys, ZsR::RunningVariable)
 
+A dataset in the regression discontinuity setting. `Ys` is a vector of outcomes. 
+"""
 struct RDData{V,R<:AbstractRunningVariable}
     Ys::V
     ZsR::R
