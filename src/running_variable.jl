@@ -58,28 +58,30 @@ end
 
 
 struct DiscretizedRunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
-	Zs::VT
+    Zs::VT
     cutoff::C
     treated::Symbol
     Ws::BitArray{1}
     ZsC::VT
-	weights::Array{Int, 1}
-	h::Array{Float64, 1}
-	binmap::Array{Int, 1}
+    weights::Array{Int,1}
+    h::Array{Float64,1}
+    binmap::Array{Int,1}
 
-	function DiscretizedRunningVariable{T, C, VT}(ZsR::RunningVariable{T, C, VT}, nbins::Int) where {T,C,VT}
-		hist = fit(Histogram, ZsR; nbins=nbins)
-		Zs = midpoints(hist.edges...)
-		Ws = broadcast(getfield(Base, ZsR.treated), Zs, ZsR.cutoff)
-		weights = hist.weights
-		h = Zs[2:length(Zs)] .- Zs[1:(length(Zs)-1)]
-		binmap = StatsBase.binindex.(Ref(hist), ZsR.Zs)
-		new(Zs, ZsR.cutoff, ZsR.treated, Ws,
-			Zs .- ZsR.cutoff, weights, h, binmap)
-	end
+    function DiscretizedRunningVariable{T,C,VT}(
+        ZsR::RunningVariable{T,C,VT},
+        nbins::Int,
+    ) where {T,C,VT}
+        hist = fit(Histogram, ZsR; nbins = nbins)
+        Zs = midpoints(hist.edges...)
+        Ws = broadcast(getfield(Base, ZsR.treated), Zs, ZsR.cutoff)
+        weights = hist.weights
+        h = Zs[2:length(Zs)] .- Zs[1:(length(Zs)-1)]
+        binmap = StatsBase.binindex.(Ref(hist), ZsR.Zs)
+        new(Zs, ZsR.cutoff, ZsR.treated, Ws, Zs .- ZsR.cutoff, weights, h, binmap)
+    end
 end
 
-function DiscretizedRunningVariable(ZsR::RunningVariable{T, C, VT}, nbins::Int) where {T, C,VT}
+function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int) where {T,C,VT}
     DiscretizedRunningVariable{T,C,VT}(ZsR, nbins)
 end
 
@@ -88,7 +90,7 @@ end
 
 Tables.istable(ZsR::AbstractRunningVariable) = true
 Tables.columnaccess(ZsR::AbstractRunningVariable) = true
-Tables.columns(ZsR::AbstractRunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs, ZsC=ZsR.ZsC)
+Tables.columns(ZsR::AbstractRunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs, ZsC = ZsR.ZsC)
 function Tables.schema(ZsR::AbstractRunningVariable)
     Tables.Schema((:Ws, :Zs, :ZsC), (eltype(ZsR.Ws), eltype(ZsR.Zs), eltype(ZsR.ZsC)))
 end
@@ -187,7 +189,7 @@ function Tables.schema(rdd_data::RDData)
             eltype(rdd_data.ZsR.Ws),
             eltype(rdd_data.ZsR.Zs),
             typeof(cutoff),
-			eltype(rdd_data.ZsR.ZsC)
+            eltype(rdd_data.ZsR.ZsC),
         ),
     )
 end
