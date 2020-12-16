@@ -59,6 +59,12 @@ Finally, looking at [Lee (2008)](https://www.sciencedirect.com/science/article/p
 ![image](/figures/lee08R.png)
 
  Overall, they look practically the same. The `R` figures looks a little bit different because the package selects the limits of y-axis differently. However, it is just a zoomed-in version of the others.
+### Time comparison:
+Finally, I benchmarked the time of `density_test` to the equivalents packages in Stata and R. The Julia package seems to do well in relatively small samples. However, when I increase the number of random draws my package performs considerably worse. 
+
+![image](/figures/time_comparison.png)
+
+![image](/figures/time_comparison_lee08.png)
 
 ----
 ### References
