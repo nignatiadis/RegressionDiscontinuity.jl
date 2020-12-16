@@ -10,9 +10,7 @@ density_test(runvar,
             verbose=true,
             generate=true)
 
-Find the minimum of function `f` by random search.
-
-Creates an animation illustrating search progress.
+Test for manipulation in the running variable following McCrary (2008).
 
 # Arguments
 

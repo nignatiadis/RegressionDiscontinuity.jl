@@ -45,6 +45,6 @@ export RunningVariable,
     ImbensKalyanaraman,
     linearweights,
     EickerHuberWhite,
-    NaiveLocalLinearRD
+    NaiveLocalLinearRD,
     density_test
 end
