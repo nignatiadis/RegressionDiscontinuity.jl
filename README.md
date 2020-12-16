@@ -47,13 +47,18 @@ Allowing for some manipulation in the running variable:
 
 Finally, looking at [Lee (2008)](https://www.sciencedirect.com/science/article/pii/S0304407607001121) data:
 * Julia
+
 ![image](/figures/lee08_julia.png)
+
 * Stata
+
 ![image](/figures/lee08_stata.png)
+
 * R
+
 ![image](/figures/lee08R.png)
 
- Overall, they look practically the same. The `R` figures looks a little bit different because the package selects the limits of y differently. 
+ Overall, they look practically the same. The `R` figures looks a little bit different because the package selects the limits of y-axis differently. However, it is just a zoomed-in version of the others.
 
 ----
 ### References
