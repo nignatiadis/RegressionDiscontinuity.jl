@@ -11,7 +11,7 @@ A Julia package for Regression Discontinuity analyses.
 The following estimates a test of manipulation of the running variable based on [McCrary (2008)](https://www.sciencedirect.com/science/article/abs/pii/S0304407607001133). 
 
 ```
-using RegressionDiscontinuity, DataFrame
+using RegressionDiscontinuity, DataFrames
 df = load_rdd_data(:lee08) |> DataFrame
 
 (pval, plot,  θhat, σθ,  b, h, df) = density_test(df.Zs)
@@ -21,18 +21,28 @@ df = load_rdd_data(:lee08) |> DataFrame
 
 I benchmarked my density test with R and Stata. For a 100_000 draws from a random normal the results are:
 * Julia
+
 ![image](/figures/data1_julia.png)
+
 * Stata
+
 ![image](/figures/data1_stata.png)
+
 * R
+
 ![image](/figures/data1R.png)
 
 Allowing for some manipulation in the running variable:
 * Julia
+
 ![image](/figures/data3_julia.png)
+
 * Stata
+
 ![image](/figures/data3_stata.png)
+
 * R
+
 ![image](/figures/data3R.png)
 
 Finally, looking at [Lee (2008)](https://www.sciencedirect.com/science/article/pii/S0304407607001121) data:
