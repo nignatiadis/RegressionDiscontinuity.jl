@@ -41,7 +41,7 @@ function density_test(runvar,
             verbose=true,
             generate=true)
     # Transforming the running variable into a dataframe.
-    df = DataFrame(R = runvar)
+    df = DataFrame(R=runvar)
 
     # Descriptive statistics of the running variable
     n = length(df.R)
@@ -129,7 +129,7 @@ function density_test(runvar,
         # Left side
         # Plotting the test
         for i in eachindex(ldf.X)
-            ldf[:dist] = ldf.X  .-  ldf.X[i]
+            ldf[!,:dist] = ldf.X  .-  ldf.X[i]
             wght = tri_kernel.(ldf.dist / h)
             aux = lm(@formula(Y ~ dist), ldf, wts=wght)
             pred_val = predict(aux)
@@ -141,15 +141,15 @@ function density_test(runvar,
 
         lVarf = (12 / (5 * n * h)) .* ldf.Y .* (2.0 .+ 3 * m.^11 .- 24 * m.^10 .+ 83 * m.^9 .- 72 * m.^8 .- 42 * m.^7 .+ 18 * m.^6 .+ 18 * m.^5 .+ 18 * m.^4 .+ 3 * m.^3 .+ 18 * m.^2 .+ 15 * m) ./ ((1.0 .+ m.^6 .- 6 * m.^5 .- 3 * m.^4 .+ 4  * m.^3 .+ 9 * m.^2 .+ 6 * m))
 
-        ldf[:se_pred] = sqrt.(lVarf)
-        ldf[:CIup]  = ldf.pred .+ 1.96 .* ldf.se_pred
-        ldf[:CIlow] = ldf.pred .- 1.96 .* ldf.se_pred
+        ldf[!, :se_pred] = sqrt.(lVarf)
+        ldf[!, :CIup]  = ldf.pred .+ 1.96 .* ldf.se_pred
+        ldf[!, :CIlow] = ldf.pred .- 1.96 .* ldf.se_pred
         #########################################
 
         #########################################
         # Right side
         for i in eachindex(rdf.X)
-            rdf[:dist] = rdf.X  .- rdf.X[i] 
+            rdf[!,:dist] = rdf.X  .- rdf.X[i] 
             wght = tri_kernel.(rdf.dist / h)
             aux = lm(@formula(Y ~ dist), rdf, wts=wght)
             pred_val = predict(aux)
@@ -161,10 +161,10 @@ function density_test(runvar,
         m = max.(-1, (-rdf.X .+ c) / h)
 
         rVarf = (12 / (5 * n * h)) .* rdf.Y .* (2.0 .- 3 * m.^11 .- 24 * m.^10 .- 83 * m.^9 .- 72 * m.^8 .+ 42 * m.^7 .+ 18 * m.^6 .- 18 * m.^5 .+ 18 * m.^4 .- 3 * m.^3 .+ 18 * m.^2 .- 15 * m) ./ ((1.0 .+ m.^6 .+ 6 * m.^5 .- 3 * m.^4 .- 4  * m.^3 .+ 9 * m.^2 .- 6 * m).^2 )
-        rdf[:se_pred] = sqrt.(rVarf)
-
-        rdf[:CIup]  = rdf.pred .+ 1.96 .* rdf.se_pred
-        rdf[:CIlow] = rdf.pred .- 1.96 .* rdf.se_pred
+        
+        rdf[!, :se_pred] = sqrt.(rVarf)
+        rdf[!, :CIup]  = rdf.pred .+ 1.96 .* rdf.se_pred
+        rdf[!, :CIlow] = rdf.pred .- 1.96 .* rdf.se_pred
         #########################################
 
         # Creating the plot
