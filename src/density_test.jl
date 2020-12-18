@@ -34,20 +34,21 @@ If `plots = true` and `generate = false`
 - `(pval, plot_final)` tuple consisting of pvalue and the plot.
 """
 function density_test(runvar,
-                      c=0.0;  
-                      bin::Union{Real,Nothing}=nothing,
-                      bw::Union{Real,Nothing}=nothing, 
-                      plot=true,
-                      verbose=true,
-                      generate=true)
+            c=0.0;  
+            bin::Union{Real,Nothing}=nothing,
+            bw::Union{Real,Nothing}=nothing, 
+            plot=true,
+            verbose=true,
+            generate=true)
     # Transforming the running variable into a dataframe.
-    df = DataFrame(R=runvar)
+    df = DataFrame(R = runvar)
 
     # Descriptive statistics of the running variable
-    n    = length(df.R)
-    sd   = std(df.R)
+    n = length(df.R)
+    sd = std(df.R)
     rmax = max(df.R...)
     rmin = min(df.R...)
+    
     if (rmin > c) || (rmax < c)
         error("The cutoff must be inside the support of the running variable.")
     end
