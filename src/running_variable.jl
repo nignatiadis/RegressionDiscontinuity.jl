@@ -1,10 +1,20 @@
 abstract type AbstractRunningVariable{T,C,VT} <: AbstractVector{T} end
 
+
+"""
+    RunningVariable(Zs; cutoff = 0.0, treated = :≥)
+
+Represents the running variable values for data in a regression
+discontinuity setting. The discontinuity is at `cutoff`, and `treated` is one of
+`[:>; :>=; :≥; :≧; :<; :<=; :≤; :≦ ]' and determines the treatment based on the
+running variable value compared to the cutoff.
+"""
 struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
     Zs::VT
     cutoff::C
     treated::Symbol
     Ws::BitArray{1}
+    ZsC::VT
     function RunningVariable{T,C,VT}(Zs::VT, cutoff::C, treated) where {T,C,VT}
         treated = Symbol(treated)
         if treated ∉ [:>; :>=; :≥; :≧; :<; :<=; :≤; :≦]
@@ -15,7 +25,8 @@ struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
             treated = :≤
         end
         Ws = broadcast(getfield(Base, treated), Zs, cutoff)
-        new(Zs, cutoff, treated, Ws)
+        ZsC = Zs .- cutoff
+        new(Zs, cutoff, treated, Ws, ZsC)
     end
 end
 
@@ -25,25 +36,9 @@ end
 
 RunningVariable(Zs; cutoff = 0.0, treated = :≥) = RunningVariable(Zs, cutoff, treated)
 
-# for internal use
-struct Centered{T,C,VT,RV<:RunningVariable{T,C,VT}} <: AbstractRunningVariable{T,C,VT}
-    ZsR::RV
-end
-
-center(ZsR::RunningVariable) = Centered(ZsR)
-
-function Base.getproperty(obj::Centered, sym::Symbol)
-    _prop = Base.getproperty(Base.getfield(obj, :ZsR), sym)
-    if sym === :Zs
-        return _prop .- obj.cutoff
-    else
-        return _prop
-    end
-end
-
-
-
 Base.size(ZsR::AbstractRunningVariable) = Base.size(ZsR.Zs)
+Base.maximum(ZsR::AbstractRunningVariable) = Base.maximum(ZsR.Zs)
+Base.minimum(ZsR::AbstractRunningVariable) = Base.minimum(ZsR.Zs)
 StatsBase.nobs(ZsR::AbstractRunningVariable) = length(ZsR)
 
 Base.@propagate_inbounds function Base.getindex(ZsR::AbstractRunningVariable, x::Int)
@@ -62,14 +57,42 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 
+struct DiscretizedRunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
+    Zs::VT
+    cutoff::C
+    treated::Symbol
+    Ws::BitArray{1}
+    ZsC::VT
+    weights::Array{Int,1}
+    h::Array{Float64,1}
+    binmap::Array{Int,1}
+
+    function DiscretizedRunningVariable{T,C,VT}(
+        ZsR::RunningVariable{T,C,VT},
+        nbins::Int,
+    ) where {T,C,VT}
+        hist = fit(Histogram, ZsR; nbins = nbins)
+        Zs = midpoints(hist.edges...)
+        Ws = broadcast(getfield(Base, ZsR.treated), Zs, ZsR.cutoff)
+        weights = hist.weights
+        h = Zs[2:length(Zs)] .- Zs[1:(length(Zs)-1)]
+        binmap = StatsBase.binindex.(Ref(hist), ZsR.Zs)
+        new(Zs, ZsR.cutoff, ZsR.treated, Ws, Zs .- ZsR.cutoff, weights, h, binmap)
+    end
+end
+
+function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int) where {T,C,VT}
+    DiscretizedRunningVariable{T,C,VT}(ZsR, nbins)
+end
+
 
 # Tables interface
 
 Tables.istable(ZsR::AbstractRunningVariable) = true
 Tables.columnaccess(ZsR::AbstractRunningVariable) = true
-Tables.columns(ZsR::AbstractRunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs)
+Tables.columns(ZsR::AbstractRunningVariable) = (Ws = ZsR.Ws, Zs = ZsR.Zs, ZsC = ZsR.ZsC)
 function Tables.schema(ZsR::AbstractRunningVariable)
-    Tables.Schema((:Ws, :Zs), (eltype(ZsR.Ws), eltype(ZsR.Zs)))
+    Tables.Schema((:Ws, :Zs, :ZsC), (eltype(ZsR.Ws), eltype(ZsR.Zs), eltype(ZsR.ZsC)))
 end
 
 
@@ -78,7 +101,7 @@ function fit(
     ZsR::AbstractRunningVariable;
     nbins = StatsBase.sturges(length(ZsR)),
 ) where {T}
-    @unpack cutoff, Zs, treated = ZsR
+    @unpack cutoff, Zs, treated, ZsC = ZsR
     if treated in [:<; :≥]
         closed = :left
     else
@@ -98,7 +121,7 @@ function fit(
     breaks_left = reverse(range(cutoff; step = -bin_width, length = nbins_left))
     breaks_right = range(cutoff; step = bin_width, length = nbins_right)
 
-    breaks = collect(sort(unique([breaks_left; breaks_right])))
+    breaks = collect(sort([breaks_left; breaks_right]))
 
     fit(Histogram{T}, ZsR, breaks; closed = closed)
 end
@@ -132,16 +155,15 @@ end
     end
 end
 
+"""
+    RDData(Ys, ZsR::RunningVariable)
 
-
+A dataset in the regression discontinuity setting. `Ys` is a vector of outcomes. 
+"""
 struct RDData{V,R<:AbstractRunningVariable}
     Ys::V
     ZsR::R
 end
-
-center(rddata::RDData) = @set rddata.ZsR = center(rddata.ZsR)
-
-
 
 StatsBase.nobs(rdd_data::RDData) = nobs(rdd_data.ZsR)
 
@@ -161,12 +183,13 @@ Tables.columnaccess(::RDData) = true
 Tables.columns(rdd_data::RDData) = merge((Ys = rdd_data.Ys,), Tables.columns(rdd_data.ZsR))
 function Tables.schema(rdd_data::RDData)
     Tables.Schema(
-        (:Ys, :Ws, :Zs, :cutoff),
+        (:Ys, :Ws, :Zs, :cutoff, :ZsC),
         (
             eltype(rdd_data.Ys),
             eltype(rdd_data.ZsR.Ws),
             eltype(rdd_data.ZsR.Zs),
             typeof(cutoff),
+            eltype(rdd_data.ZsR.ZsC),
         ),
     )
 end

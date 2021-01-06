@@ -54,7 +54,7 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
     rddata_filt = rddata[new_support]
     wts = weights(fitted_kernel, rddata_filt.ZsR)
 
-    fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * Zs), center(rddata_filt), wts = wts)
+    fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * ZsC), rddata_filt, wts = wts)
 
     tau_est = coef(fitted_lm)[2]
     se_est = sqrt(var(variance, fitted_lm))
