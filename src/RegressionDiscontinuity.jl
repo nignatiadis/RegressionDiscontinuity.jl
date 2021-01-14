@@ -37,7 +37,7 @@ include("kernels.jl")
 include("imbens_kalyanaraman.jl")
 include("local_linear.jl")
 include("minmax_optimal.jl")
-include("density_test.jl")
+include("DensityTest.jl")
 
 export RunningVariable,
     RDData,
@@ -53,5 +53,5 @@ export RunningVariable,
     NaiveLocalLinearRD,
     ImbensWagerOptRD,
     estimate_second_deriv_bound,
-    density_test
+    McCraryTest
 end
