@@ -36,7 +36,7 @@ test3 = fit(McCraryTest(), rv3)
 
 # Testing the package with real data.
 lee08 = load_rdd_data(:lee08)
-lee08_mccrary = fit(McCraryTest(), data.ZsR)
+lee08_mccrary = fit(McCraryTest(), lee08.ZsR)
 
 
 # I will compare the results with the rdd package.

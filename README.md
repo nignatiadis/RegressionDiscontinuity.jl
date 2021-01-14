@@ -38,8 +38,8 @@ The following estimates a test of manipulation of the running variable based on 
 
 ```
 using RegressionDiscontinuity, DataFrames
-df = load_rdd_data(:lee08) |> DataFrame
+data = load_rdd_data(:lee08)
 
-(pval, plot,  θhat, σθ,  b, h, df) = density_test(df.Zs)
+lee08_mccrary = fit(McCraryTest(), data.ZsR)
 ```
 
