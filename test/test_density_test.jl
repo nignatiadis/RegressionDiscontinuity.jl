@@ -3,7 +3,6 @@ using Test
 using Feather
 
 using RegressionDiscontinuity
-using Plots
 using Distributions
 using GLM
 using DataFrames
