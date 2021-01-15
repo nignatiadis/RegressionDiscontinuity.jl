@@ -13,7 +13,6 @@ using JuMP
 using LinearAlgebra
 using GLM
 using OffsetArrays
-using Plots 
 using QuadGK
 using RecipesBase
 using Roots
