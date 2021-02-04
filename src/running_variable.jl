@@ -34,7 +34,7 @@ function RunningVariable(Zs::VT, cutoff::C, treated) where {C,VT}
     RunningVariable{eltype(VT),C,VT}(Zs, cutoff, treated)
 end
 
-RunningVariable(Zs; cutoff = 0.0, treated = :≥) = RunningVariable(Zs, cutoff, treated)
+RunningVariable(Zs; cutoff=0.0, treated=:≥) = RunningVariable(Zs, cutoff, treated)
 
 Base.size(ZsR::AbstractRunningVariable) = Base.size(ZsR.Zs)
 Base.maximum(ZsR::AbstractRunningVariable) = Base.maximum(ZsR.Zs)
@@ -70,19 +70,21 @@ struct DiscretizedRunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
     function DiscretizedRunningVariable{T,C,VT}(
         ZsR::RunningVariable{T,C,VT},
         nbins::Int,
+        bin_width::AbstractFloat
     ) where {T,C,VT}
-        hist = fit(Histogram, ZsR; nbins = nbins)
+
+        hist = fit(Histogram, ZsR; nbins=nbins, bin_width=bin_width)
         Zs = midpoints(hist.edges...)
         Ws = broadcast(getfield(Base, ZsR.treated), Zs, ZsR.cutoff)
         weights = hist.weights
-        h = Zs[2:length(Zs)] .- Zs[1:(length(Zs)-1)]
+        h = Zs[2:length(Zs)] .- Zs[1:(length(Zs) - 1)]
         binmap = StatsBase.binindex.(Ref(hist), ZsR.Zs)
         new(Zs, ZsR.cutoff, ZsR.treated, Ws, Zs .- ZsR.cutoff, weights, h, binmap)
     end
 end
 
-function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int) where {T,C,VT}
-    DiscretizedRunningVariable{T,C,VT}(ZsR, nbins)
+function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int, bin_width::AbstractFloat) where {T,C,VT}
+   DiscretizedRunningVariable{T,C,VT}(ZsR, nbins, bin_width)
 end
 
 
@@ -99,7 +101,8 @@ end
 function fit(
     ::Type{Histogram{T}},
     ZsR::AbstractRunningVariable;
-    nbins = StatsBase.sturges(length(ZsR)),
+    nbins=StatsBase.sturges(length(ZsR)),
+    bin_width=bin_width(ZsR)
 ) where {T}
     @unpack cutoff, Zs, treated, ZsC = ZsR
     if treated in [:<; :≥]
@@ -107,23 +110,18 @@ function fit(
     else
         closed = :right
     end
-    nbins = iseven(nbins) ? nbins : nbins + 1
+    # nbins = iseven(nbins) ? nbins : nbins + 1
 
     min_Z, max_Z = extrema(Zs)
 
-    bin_width = (max_Z - min_Z) * 1.01 / nbins
 
-    prop_right = (max_Z - cutoff) * 1.01 / (max_Z - min_Z)
-    prop_left = (cutoff - min_Z) * 1.01 / (max_Z - min_Z)
-    nbins_right = ceil(Int, nbins * prop_right)
-    nbins_left = ceil(Int, nbins * prop_left)
+    # l  = floor((min_Z - cutoff) / bin_width) * bin_width + 0.5 * bin_width + cutoff
+    
+    l  = floor((min_Z - cutoff) / bin_width) * bin_width  + cutoff
 
-    breaks_left = reverse(range(cutoff; step = -bin_width, length = nbins_left))
-    breaks_right = range(cutoff; step = bin_width, length = nbins_right)
+    breaks = collect(range(l; step=bin_width, length=nbins))
 
-    breaks = collect(sort([breaks_left; breaks_right]))
-
-    fit(Histogram{T}, ZsR, breaks; closed = closed)
+    fit(Histogram{T}, ZsR, breaks; closed=closed)
 end
 
 
@@ -131,7 +129,7 @@ end
 
     nbins = get(plotattributes, :bins, StatsBase.sturges(length(ZsR)))
 
-    fitted_hist = fit(Histogram, ZsR; nbins = nbins)
+    fitted_hist = fit(Histogram, ZsR; nbins=nbins)
 
     yguide --> "Frequency"
     xguide --> "Running variable"
@@ -160,7 +158,7 @@ end
 
 A dataset in the regression discontinuity setting. `Ys` is a vector of outcomes. 
 """
-struct RDData{V,R<:AbstractRunningVariable}
+struct RDData{V,R <: AbstractRunningVariable}
     Ys::V
     ZsR::R
 end
@@ -184,13 +182,11 @@ Tables.columns(rdd_data::RDData) = merge((Ys = rdd_data.Ys,), Tables.columns(rdd
 function Tables.schema(rdd_data::RDData)
     Tables.Schema(
         (:Ys, :Ws, :Zs, :cutoff, :ZsC),
-        (
-            eltype(rdd_data.Ys),
+        (eltype(rdd_data.Ys),
             eltype(rdd_data.ZsR.Ws),
             eltype(rdd_data.ZsR.Zs),
             typeof(cutoff),
-            eltype(rdd_data.ZsR.ZsC),
-        ),
+            eltype(rdd_data.ZsR.ZsC),),
     )
 end
 
@@ -214,7 +210,7 @@ abstract type RDDIndexing end
 struct Treated <: RDDIndexing end
 struct Untreated <: RDDIndexing end
 
-function Base.getindex(ZsR::R, i::Interval) where {R<:Union{RunningVariable,RDData}}
+function Base.getindex(ZsR::R, i::Interval) where {R <: Union{RunningVariable,RDData}}
     idx = in.(ZsR.Zs, i)
     Base.getindex(ZsR, idx)
 end
@@ -227,7 +223,7 @@ end
     RDData(Ys, ZsR)
 end
 
-#-------------------------------------------------------
+# -------------------------------------------------------
 # include this temporarily, from Plots.jl codebase
 # until issue 2360 is resolved
 error_tuple(x) = x, x
@@ -250,13 +246,13 @@ function error_coords(errorbar, errordata, otherdata...)
     end
     return (ed, od...)
 end
-#----------------------------------------------------------
+# ----------------------------------------------------------
 @recipe function f(rdd_data::RDData)
 
     ZsR = rdd_data.ZsR
     nbins = get(plotattributes, :bins, StatsBase.sturges(length(ZsR)))
 
-    fitted_hist = fit(Histogram, ZsR; nbins = nbins)
+    fitted_hist = fit(Histogram, ZsR; nbins=nbins)
     zs = StatsBase.midpoints(fitted_hist.edges[1])
     err_length = (zs[2] - zs[1]) / 2
     binidx = StatsBase.binindex.(Ref(fitted_hist), ZsR)
@@ -280,7 +276,7 @@ end
 
     zs_scatter, ys_scatter = error_coords(err_length, zs, ys)
 
-    #ylims --> extrema(ys)
+    # ylims --> extrema(ys)
 
     @series begin
         label --> "Regressogram"

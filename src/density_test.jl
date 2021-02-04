@@ -10,9 +10,10 @@ The `bin` object is the width of each bin. The default is 2*sd(runvar)*length(ru
 
 The `bw` object is the bandwidth. The default uses the calculation from McCrary (2008), pg. 705.
 """
-Base.@kwdef struct McCraryTest 
+Base.@kwdef struct McCraryTest{K}
     bin::Union{Real,Nothing} = nothing 
     bw::Union{Real,Nothing} = nothing 
+    kernel::K = SymTriangularDist()
 end
 
 Base.@kwdef struct FittedMcCraryTest{T,M,V,C}
@@ -27,13 +28,9 @@ Base.@kwdef struct FittedMcCraryTest{T,M,V,C}
 end
 
 
-# 0. Kernel used in the McCrary Test
-
-TriangularKernel(t) = max(0, (1 - abs(t)))
-
 # 1. Descriptive Statistics
 
-function DescriptiveStats(RunVar)
+function descriptive_stats(RunVar::RunningVariable)
     n = Base.length(RunVar)
     sd = StatsBase.std(RunVar)
     rmax = Base.maximum(RunVar)
@@ -41,56 +38,96 @@ function DescriptiveStats(RunVar)
     return n, sd, rmax, rmin
 end
 
-# 2. Binsize (uses DescriptiveStats)
+# 2. Binsize (uses descriptive_stats)
 # function Binsize(n, sd, bin::Union{Real,Nothing}=nothing)
-function Binsize(n, sd)
+function bin_width(n, sd)
     b = 2 * sd * n^(-.5)
 end
 
-# 3. Number of Binsize
-function BinNumber(c, b, rmin, rmax)
+function bin_width(Zs::RunningVariable)
+    n, sd, rmax, rmin = descriptive_stats(Zs)
+    return b = 2 * sd * (n)^(-.5)
+end
+
+
+# 3. Number of bins
+function bin_number(c, b, rmin, rmax)
     Jl = convert(Int64, round(floor((c - rmin) / b) + 1))
     J = convert(Int64, floor((rmax - rmin) / b) + 2)
     Jr = J - Jl
     return J, Jl, Jr
 end
 
-# 4. Discretetized running variable (DRV).
-function DRV(RunVar, c, b, rmin, J, n)
-    l  = floor((rmin - c) / b) * b + 0.5 * b + c
-
-    # Discretized running variable 
-    X = zeros(J)
-    for j = 1:J
-        X[j] = l + (j - 1) * b
-    end
-
-    gR = floor.((RunVar .- c) ./ b) * b .+ 0.5 * b .+ c;
-
-    # Creating the smooth histogram Yi
-    Y = zeros(J)
-    for j = 1:J
-        Y[j] = sum(1.0 * (gR .≈ X[j])) / (n * b)
-    end
-    return X, Y
+function bin_number(Zs::RunningVariable)
+    n, sd, rmax, rmin = descriptive_stats(Zs)
+    b = bin_width(Zs)
+    c = Zs.cutoff
+    Jl = convert(Int64, round(floor((c - rmin) / b) + 1))
+    J = convert(Int64, floor((rmax - rmin) / b) + 2)
+    Jr = J - Jl
+    return J, Jl, Jr
 end
 
-# 5. Bandwidth, needs (4), (3), (2), (1)
+function bin_number(method::McCraryTest, Zs::RunningVariable)
+    n, sd, rmax, rmin = descriptive_stats(Zs)
 
-function McCraryBandwidth(X, Y, Jl, c)
-        # I will proceed to estimate the optimal bandwidth using McCrary (2008) optimal method.
+    if method.bin === nothing
+        b = bin_width(Zs) 
+    else
+        b = method.bin
+    end
+    c = Zs.cutoff
+    Jl = convert(Int64, round(floor((c - rmin) / b) + 1))
+    J = convert(Int64, floor((rmax - rmin) / b) + 2)
+    Jr = J - Jl
+    return J, Jl, Jr
+end
+
+# 4. Kernel Constant for McCrary
+### According to footnote 18 of McCrary (2008), this constant cannot be computed by the standard formula in the book (Eq 4.3) because is a boundary case. What I understand is that the constant is calculted from 3.20 and 3.22 of Fan and Gijbels. 
+
+function kernel_constant(method::McCraryTest)
+    # Here I need to see how to calculate this. For now its output is just for the Triangular Kernel 
+    # kernel = EquivalentKernel(method.kernel)
+
     κ = 3.348
-            
-        # Left part
+end
+
+
+# 5. Bandwidth, needs (4), (3), (2), (1)
+# function bandwidth(mccrary::McCrary, kernel::SymTriangularDist, X, Y, Jl, c)
+
+function bandwidth(method::McCraryTest, Zs::RunningVariable)
+        # I will proceed to estimate the optimal bandwidth using McCrary (2008) optimal method.
+    κ = kernel_constant(method)
+    c = Zs.cutoff
+
+    # Discretized Running Variable
+    n, sd, rmin, rmax = descriptive_stats(Zs)
+
+    #### NEED TO ADAPT THIS
+    if method.bin === nothing
+        b = bin_width(Zs) 
+    else
+        b = method.bin
+    end
+   
+    J, Jl, Jr = bin_number(method, Zs)
+    
+    DRV = DiscretizedRunningVariable(Zs, J + 1, b)
+    X = collect(DRV)
+    Y = DRV.weights / (n * b)
+
+    # Left part
     ldf = DataFrame(Y=Y[1:Jl], X=X[1:Jl])
     lols = lm(@formula(Y ~ X + X^2 + X^3 + X^4 ), ldf)
     lcoef = coef(lols)
     lmse =  deviance(lols) / dof_residual(lols)
+
     lf = 2 * lcoef[3] .+ 6 * lcoef[4] * ldf.X + 12 * lcoef[5] * ldf.X.^2 
-            
     lh = κ * (lmse * (c - ldf.X[1]) / sum(lf'lf))^(0.2)
             
-        # Right part
+    # Right part
     rdf = DataFrame(Y=Y[Jl + 1:end], X=X[Jl + 1:end])
     rols = lm(@formula(Y ~ X + X^2 + X^3 + X^4 ), rdf)
     rcoef = coef(rols)
@@ -100,7 +137,7 @@ function McCraryBandwidth(X, Y, Jl, c)
     rf = 2 * rcoef[3] .+ 6 * rcoef[4] * rdf.X + 12 * rcoef[5] * rdf.X.^2 
     rh = κ * (rmse * (rdf.X[end] - c) / sum(rf'rf))^(0.2)
             
-        # Taking the average
+    # Taking the average
     h = 0.5 * (rh + lh)
 end
 
@@ -117,32 +154,36 @@ Test for manipulation in the running variable following McCrary (2008).
 # Returns
 Returns  a FittedMcCraryTest object with fields `b` and `h` which are the bin size and the bandwidth used, respectively. Also, it returns `θhat`, `σθ`, `pval`, `Js`, and `fitted_res` which are the estimated difference in the intercepts, the standard error of the estimate, the pval of the test H0: θhat = 0, the number of bins used, and the fitted values for the support of the running variable (as a DataFrame). Finally, `coeftable` provides an object of type CoefTable for the estimator. 
 """
-function fit(method::McCraryTest, data::RunningVariable)
+function fit(method::McCraryTest, Zs::RunningVariable)
     
     # Cutoff selection
-    c = data.cutoff
-    R = data.Zs
+    c = Zs.cutoff
+    R = Zs
+    kernel(t) = pdf(method.kernel, t) 
+
     # Call the functions 
     # 1.
-    n, sd, rmax, rmin = DescriptiveStats(R)
+    n, sd, rmax, rmin = descriptive_stats(Zs)
 
     # 2.
     if method.bin === nothing
-        b = Binsize(n, sd)
+        b = bin_width(Zs)
     else
         b = method.bin
     end
 
     # 3.
-    J, Jl, Jr = BinNumber(c, b, rmin, rmax)
+    J, Jl, Jr = bin_number(method, Zs)
     Js = [J; Jl; Jr]
 
     # 4.
-    X, Y = DRV(R, c, b, rmin, J, n)
+    DRV = DiscretizedRunningVariable(Zs, J + 1, b)
+    X = collect(DRV)
+    Y = DRV.weights / (n * b)
 
     # 5.
     if method.bw === nothing
-        h = McCraryBandwidth(X, Y, Jl, c)
+        h = bandwidth(method, Zs)
     else
         h = method.bw
     end
@@ -153,12 +194,12 @@ function fit(method::McCraryTest, data::RunningVariable)
     rdf = DataFrame(Y=Y[Jl + 1:end], X=X[Jl + 1:end], pred=zeros(Jr))
 
     # Left side 
-    Sminus(k) = sum(TriangularKernel.((ldf.X .- c) ./ h) .* (ldf.X .- c).^k)
-    lfhat = sum(TriangularKernel.((ldf.X .- c) ./ h) .* ((Sminus(2) .- Sminus(1) .* (ldf.X .- c)) ./ (Sminus(2) * Sminus(0) - (Sminus(1))^2 )) .* ldf.Y)
+    Sminus(k) = sum(kernel.((ldf.X .- c) ./ h) .* (ldf.X .- c).^k)
+    lfhat = sum(kernel.((ldf.X .- c) ./ h) .* ((Sminus(2) .- Sminus(1) .* (ldf.X .- c)) ./ (Sminus(2) * Sminus(0) - (Sminus(1))^2 )) .* ldf.Y)
  
     # Right side
-    Splus(k) = sum(TriangularKernel.((rdf.X .- c) ./ h) .* (rdf.X .- c).^k)
-    rfhat = sum(TriangularKernel.((rdf.X .- c) ./ h) .* ((Splus(2) .- Splus(1) .* (rdf.X .- c)) ./ (Splus(2) * Splus(0) - (Splus(1))^2)) .* rdf.Y)
+    Splus(k) = sum(kernel.((rdf.X .- c) ./ h) .* (rdf.X .- c).^k)
+    rfhat = sum(kernel.((rdf.X .- c) ./ h) .* ((Splus(2) .- Splus(1) .* (rdf.X .- c)) ./ (Splus(2) * Splus(0) - (Splus(1))^2)) .* rdf.Y)
  
     # The estimates:
     θhat = log(rfhat) - log(lfhat)
@@ -176,7 +217,7 @@ function fit(method::McCraryTest, data::RunningVariable)
         # Left side
     for i in eachindex(ldf.X)
         ldf[!,:dist] = ldf.X  .-  ldf.X[i]
-        lwght = TriangularKernel.(ldf.dist / h)
+        lwght = kernel.(ldf.dist / h)
         laux = lm(@formula(Y ~ dist), ldf, wts=lwght)
         ldf.pred[i] = predict(laux)[i]
     end
@@ -190,7 +231,7 @@ function fit(method::McCraryTest, data::RunningVariable)
         # Right side
     for i in eachindex(rdf.X)
         rdf[!,:dist] = rdf.X  .- rdf.X[i] 
-        rwght = TriangularKernel.(rdf.dist / h)
+        rwght = kernel.(rdf.dist / h)
         raux = lm(@formula(Y ~ dist), rdf, wts=rwght)
         rdf.pred[i] = predict(raux)[i]
             # pred_val = predict(raux)
@@ -203,7 +244,8 @@ function fit(method::McCraryTest, data::RunningVariable)
     
     rdf[!, :se_pred] = sqrt.(rVarf)
 
-    fitted_res = DataFrame(Y=Y, X=X, fhat=vcat(ldf.pred, rdf.pred), se_fhat=vcat(ldf.se_pred, rdf.se_pred))
+fitted_res = DataFrame(Y=Y, X=X, fhat=vcat(ldf.pred, rdf.pred), se_fhat=vcat(ldf.se_pred, rdf.se_pred))
+# fitted_res = DataFrame(Y=Y, X=X, fhat=vcat(ldf.pred, rdf.pred))
 
     FittedMcCraryTest(
         b=b,

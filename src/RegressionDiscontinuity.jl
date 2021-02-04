@@ -36,7 +36,7 @@ include("kernels.jl")
 include("imbens_kalyanaraman.jl")
 include("local_linear.jl")
 include("minmax_optimal.jl")
-include("DensityTest.jl")
+include("density_test.jl")
 
 export RunningVariable,
     RDData,
