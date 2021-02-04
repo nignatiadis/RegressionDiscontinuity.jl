@@ -217,9 +217,7 @@ function fit(method::McCraryTest, Zs::RunningVariable)
         # Left side
     for i in eachindex(ldf.X)
         ldf[!,:dist] = ldf.X  .-  ldf.X[i]
-        lwght = kernel.(ldf.dist / h)
-        laux = lm(@formula(Y ~ dist), ldf, wts=lwght)
-        ldf.pred[i] = predict(laux)[i]
+        ldf.pred[i] = predict(lm(@formula(Y ~ dist), ldf, wts=kernel.(ldf.dist / h)))[i]
     end
 
     m = min.((c .- ldf.X) / h, 1)
@@ -231,11 +229,7 @@ function fit(method::McCraryTest, Zs::RunningVariable)
         # Right side
     for i in eachindex(rdf.X)
         rdf[!,:dist] = rdf.X  .- rdf.X[i] 
-        rwght = kernel.(rdf.dist / h)
-        raux = lm(@formula(Y ~ dist), rdf, wts=rwght)
-        rdf.pred[i] = predict(raux)[i]
-            # pred_val = predict(raux)
-            # rdf.pred[i]  = pred_val[i]
+        rdf.pred[i] = predict(lm(@formula(Y ~ dist), rdf, wts=kernel.(rdf.dist / h)))[i]
     end
 
     m = max.(-1, (-rdf.X .+ c) / h)
@@ -245,9 +239,8 @@ function fit(method::McCraryTest, Zs::RunningVariable)
     rdf[!, :se_pred] = sqrt.(rVarf)
 
 fitted_res = DataFrame(Y=Y, X=X, fhat=vcat(ldf.pred, rdf.pred), se_fhat=vcat(ldf.se_pred, rdf.se_pred))
-# fitted_res = DataFrame(Y=Y, X=X, fhat=vcat(ldf.pred, rdf.pred))
 
-    FittedMcCraryTest(
+FittedMcCraryTest(
         b=b,
         h=h,
         θhat=θhat,
