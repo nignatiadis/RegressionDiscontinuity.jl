@@ -80,12 +80,21 @@ struct DiscretizedRunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
         h = Zs[2:length(Zs)] .- Zs[1:(length(Zs) - 1)]
         binmap = StatsBase.binindex.(Ref(hist), ZsR.Zs)
         new(Zs, ZsR.cutoff, ZsR.treated, Ws, Zs .- ZsR.cutoff, weights, h, binmap)
-    end
+end
 end
 
+
 function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int, bin_width::AbstractFloat) where {T,C,VT}
+    DiscretizedRunningVariable{T,C,VT}(ZsR, nbins, bin_width)
+ end
+
+function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int) where {T,C,VT}
+    nbins = iseven(nbins) ? nbins : nbins + 1
+    min_Z, max_Z = extrema(ZsR)
+
+    bin_width = (max_Z - min_Z) * 1.01 / nbins
    DiscretizedRunningVariable{T,C,VT}(ZsR, nbins, bin_width)
-end
+ end
 
 
 # Tables interface
@@ -110,19 +119,74 @@ function fit(
     else
         closed = :right
     end
-    # nbins = iseven(nbins) ? nbins : nbins + 1
-
-    min_Z, max_Z = extrema(Zs)
-
-
-    # l  = floor((min_Z - cutoff) / bin_width) * bin_width + 0.5 * bin_width + cutoff
-    
+    min_Z, max_Z = extrema(Zs)    
     l  = floor((min_Z - cutoff) / bin_width) * bin_width  + cutoff
 
     breaks = collect(range(l; step=bin_width, length=nbins))
 
     fit(Histogram{T}, ZsR, breaks; closed=closed)
 end
+
+# function fit(
+#    ::Type{Histogram{T}},
+#    ZsR::AbstractRunningVariable;
+#    nbins
+# ) where {T}
+#    @unpack cutoff, Zs, treated, ZsC = ZsR
+#    if treated in [:<; :≥]
+#        closed = :left
+#    else
+#        closed = :right
+#    end
+#    nbins = iseven(nbins) ? nbins : nbins + 1
+#
+#    min_Z, max_Z = extrema(Zs)
+#
+#    bin_width = (max_Z - min_Z) * 1.01 / nbins
+#
+#    prop_right = (max_Z - cutoff) * 1.01 / (max_Z - min_Z)
+#    prop_left = (cutoff - min_Z) * 1.01 / (max_Z - min_Z)
+#    nbins_right = ceil(Int, nbins * prop_right)
+#    nbins_left = ceil(Int, nbins * prop_left)
+#
+#    breaks_left = reverse(range(cutoff; step=-bin_width, length=nbins_left))
+#    breaks_right = range(cutoff; step=bin_width, length=nbins_right)
+#
+#    breaks = collect(sort([breaks_left; breaks_right]))
+#
+#    fit(Histogram{T}, ZsR, breaks; closed=closed)
+# end
+#
+# function fit(
+#    ::Type{Histogram{T}},
+#    ZsR::AbstractRunningVariable;
+#    bin_width) where {T}
+#
+#    @unpack cutoff, Zs, treated, ZsC = ZsR
+#    if treated in [:<; :≥]
+#        closed = :left
+#    else
+#        closed = :right
+#    end
+#
+#    min_Z, max_Z = extrema(Zs)
+#
+#    nbins = (max_Z - min_Z) * 1.01 / bin_width
+#    nbins = iseven(nbins) ? nbins : nbins + 1
+#
+#    prop_right = (max_Z - cutoff) * 1.01 / (max_Z - min_Z)
+#    prop_left = (cutoff - min_Z) * 1.01 / (max_Z - min_Z)
+#    nbins_right = ceil(Int, nbins * prop_right)
+#    nbins_left = ceil(Int, nbins * prop_left)
+#
+#    breaks_left = reverse(range(cutoff; step=-bin_width, length=nbins_left))
+#    breaks_right = range(cutoff; step=bin_width, length=nbins_right)
+#
+#    breaks = collect(sort([breaks_left; breaks_right]))
+#
+#    fit(Histogram{T}, ZsR, breaks; closed=closed)
+# end
+
 
 
 @recipe function f(ZsR::AbstractRunningVariable)
