@@ -27,12 +27,16 @@ using Tables
 using UnPack
 
 
+
+
+
 include("running_variable.jl")
 include("load_example_data.jl")
 include("kernels.jl")
 include("imbens_kalyanaraman.jl")
 include("local_linear.jl")
 include("minmax_optimal.jl")
+include("density_test.jl")
 
 export RunningVariable,
     RDData,
@@ -47,5 +51,6 @@ export RunningVariable,
     Homoskedastic,
     NaiveLocalLinearRD,
     ImbensWagerOptRD,
-    estimate_second_deriv_bound
+    estimate_second_deriv_bound,
+    McCraryTest
 end

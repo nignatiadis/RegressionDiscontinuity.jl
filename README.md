@@ -31,3 +31,15 @@ data = load_rdd_data(:lee08)
 
 result = fit(ImbensWagerOptRD(B=14.28, solver=Mosek.Optimizer), data)
 ```
+
+### Density Test.
+
+The following estimates a test of manipulation of the running variable based on [McCrary (2008)](https://www.sciencedirect.com/science/article/abs/pii/S0304407607001133). 
+
+```
+using RegressionDiscontinuity
+data = load_rdd_data(:lee08)
+
+lee08_mccrary = fit(McCraryTest(), data.ZsR)
+```
+
