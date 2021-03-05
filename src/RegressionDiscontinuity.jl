@@ -51,6 +51,5 @@ export RunningVariable,
     Homoskedastic,
     NaiveLocalLinearRD,
     ImbensWagerOptRD,
-    estimate_second_deriv_bound,
     McCraryTest
 end
