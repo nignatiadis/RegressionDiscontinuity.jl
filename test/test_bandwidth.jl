@@ -32,7 +32,7 @@ N_left = length(left_idx)
 N_right = length(right_idx)
 
 # Step 1: Density and conditional variance at 0
-h₁ = 1.84 * std(Z) * N^(-1 / 5)
+h₁ = 1.84 * Statistics.std(Z) * N^(-1 / 5)
 
 h₁_left_idx = findall(-h₁ .<= Z .< 0)
 h₁_right_idx = findall(+h₁ .>= Z .>= 0)
@@ -41,9 +41,9 @@ N_h₁_left = length(h₁_left_idx)
 N_h₁_right = length(h₁_right_idx)
 
 Ȳ_h₁_left = mean(Y[h₁_left_idx])
-sd_Y_h₁_left = std(Y[h₁_left_idx])
+sd_Y_h₁_left = Statistics.std(Y[h₁_left_idx])
 Ȳ_h₁_right = mean(Y[h₁_right_idx])
-sd_Y_h₁_right = std(Y[h₁_right_idx])
+sd_Y_h₁_right = Statistics.std(Y[h₁_right_idx])
 
 f̂₀ = (N_h₁_left + N_h₁_right) / 2 / N / h₁
 
@@ -92,6 +92,8 @@ fit_triang = fit(
     lee08_rdd,
 )
 
+
+
 @test bw_ik_triang ≈ ik_triang_paper atol = 0.001
 @test fit_triang.fitted_bandwidth == bw_ik_triang
 @test fit_triang.tau_est ≈ point_est_triang_paper atol = 0.001
@@ -105,12 +107,14 @@ ik_rect_paper = 0.4617
 point_est_rect_paper = 0.0806
 se_rect_paper = 0.0087
 
+#using Plots
 bw_ik_rect = bandwidth(ImbensKalyanaraman(), Rectangular(), lee08_rdd)
 fit_rect = fit(
     NaiveLocalLinearRD(kernel = Rectangular(), bandwidth = ImbensKalyanaraman()),
     lee08_rdd,
 )
 
+#plot(fit_rect; linecolor=:black)
 @test bw_ik_rect ≈ ik_rect_paper atol = 0.001
 @test fit_rect.fitted_bandwidth == bw_ik_rect
 @test fit_rect.tau_est ≈ point_est_rect_paper atol = 0.001

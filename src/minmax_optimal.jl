@@ -52,7 +52,7 @@ function bias_adjusted_gaussian_ci(se; maxbias = 0.0, level = 0.95)
     zz * se
 end
 
-function var(::Homoskedastic, γ::Vector, sig2::Float64)
+function Statistics.std(::Homoskedastic, γ::Vector, sig2::Float64)
     sqrt(sum(γ .^ 2) * sig2)
 end
 
@@ -116,7 +116,7 @@ function fit(method::ImbensWagerOptRD, data::RDData; level = 0.95)
 
     τ = sum(γ .* data.Ys)
     maxbias = value(l1)
-    se = var(method.variance, γ, sig2)
+    se = Statistics.std(method.variance, γ, sig2)
     ci = bias_adjusted_gaussian_ci(se; maxbias = maxbias, level = level)
     ci = [τ - ci, τ + ci]
     levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)

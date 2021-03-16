@@ -219,41 +219,6 @@ function nir_weights_quadprog(nir, Zs)
 end
 
 
-function StatsBase.fit(nir::NoiseInducedRandomization, ZsR::RunningVariable, Ys)
-    nir = initialize(nir, ZsR, Ys)
-    @unpack convexclass = nir
-    Zs = ZsR.Zs
-    nir = @set nir.plugin_G = StatsBase.fit(nir.plugin_G, summarize(nir.discretizer.all.(Zs)))
-
-    γs = nir_weights_quadprog(nir, Zs)
-    #return γs
-    γ₊_denom = sum( γs.γ₊.(Zs,0))
-    γ₋_denom = sum( γs.γ₋.(Zs,0))
-
-    μ̂γ₊ = dot( γs.γ₊.(Zs,0), Ys) / γ₊_denom
-    μ̂γ₋ = dot( γs.γ₋.(Zs,0), Ys) / γ₋_denom
-    τ̂ = μ̂γ₊ - μ̂γ₋
-
-
-    σ̂_squared =   dot( γs.γ₊.(Zs,0).^2, (Ys .- μ̂γ₊).^2)/γ₊_denom^2 +
-                  dot( γs.γ₋.(Zs,0).^2, (Ys .- μ̂γ₋).^2)/γ₋_denom^2
-    se = sqrt(σ̂_squared)
-
-    maxbias_fit =  nir_maxbias(nir, γs, ZsR.Zs)
-    maxbias = maxbias_fit.maxbias
-
-    level = 1-nir.α
-    ci_halfwidth = bias_adjusted_gaussian_ci(se; maxbias = maxbias, level = level)
-    ci = [τ̂ - ci_halfwidth, τ̂ + ci_halfwidth]
-    levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
-    res = [τ̂ se maxbias first(ci) last(ci) ci_halfwidth]
-    colnms = ["τ̂"; "se"; "max bias"; "Lower $levstr%"; "Upper $levstr%"; "CI halfwidth"]
-    rownms = ["Weighted RD estimand"]
-    coeftbl = CoefTable(res, colnms, rownms, 0, 0)
-
-
-    (coeftable=coeftbl, τ̂=τ̂, γs=γs, se=se, maxbias=maxbias, maxbias_fit = maxbias_fit)
-end
 
 function nir_maxbias(nir, γs, Zs)
     M = nir.response_upper_bound - nir.response_lower_bound
@@ -314,6 +279,61 @@ function nir_maxbias(nir, γs, Zs)
     (maxbias=maxbias, bias_model=bias_model, ξ=ξ, ξ_min = _ξ_min, ξ_max = _ξ_max,
      ξs = ξs, grid_vals = max_vals)
 end
+
+Base.@kwdef struct FittedNoiseInducedRandomization
+    coeftable
+    τ̂
+    se
+    maxbias
+    γs
+    maxbias_fit
+    nir
+end
+
+function Base.show(io::IO, nir::FittedNoiseInducedRandomization)
+    Base.println(io::IO, "RD analysis with Noise Induced Randomization (NIR)")
+    Base.show(io, nir.coeftable)
+end
+
+function StatsBase.fit(nir::NoiseInducedRandomization, ZsR::RunningVariable, Ys)
+    nir = initialize(nir, ZsR, Ys)
+    @unpack convexclass = nir
+    Zs = ZsR.Zs
+    nir = @set nir.plugin_G = StatsBase.fit(nir.plugin_G, summarize(nir.discretizer.all.(Zs)))
+
+    γs = nir_weights_quadprog(nir, Zs)
+    #return γs
+    γ₊_denom = sum( γs.γ₊.(Zs,0))
+    γ₋_denom = sum( γs.γ₋.(Zs,0))
+
+    μ̂γ₊ = dot( γs.γ₊.(Zs,0), Ys) / γ₊_denom
+    μ̂γ₋ = dot( γs.γ₋.(Zs,0), Ys) / γ₋_denom
+    τ̂ = μ̂γ₊ - μ̂γ₋
+
+
+    σ̂_squared =   dot( γs.γ₊.(Zs,0).^2, (Ys .- μ̂γ₊).^2)/γ₊_denom^2 +
+                  dot( γs.γ₋.(Zs,0).^2, (Ys .- μ̂γ₋).^2)/γ₋_denom^2
+
+    se = sqrt(σ̂_squared)
+
+    maxbias_fit =  nir_maxbias(nir, γs, ZsR.Zs)
+    maxbias = maxbias_fit.maxbias
+
+    level = 1-nir.α
+    ci_halfwidth = bias_adjusted_gaussian_ci(se; maxbias = maxbias, level = level)
+    ci = [τ̂ - ci_halfwidth, τ̂ + ci_halfwidth]
+    levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
+    res = [τ̂ se maxbias first(ci) last(ci) ci_halfwidth]
+    colnms = ["τ̂"; "se"; "max bias"; "Lower $levstr%"; "Upper $levstr%"; "CI halfwidth"]
+    rownms = ["Weighted RD estimand"]
+    coeftbl = CoefTable(res, colnms, rownms, 0, 0)
+
+
+    FittedNoiseInducedRandomization(coeftable = coeftbl, τ̂ = τ̂,
+        γs = γs, se = se, maxbias = maxbias, maxbias_fit = maxbias_fit,
+        nir = nir)
+end
+
 
 @recipe function f(rdd_weights::RegressionDiscontinuity.NoiseInducedRandomizationWeights{<:BinomialSample})
     γ₋ = rdd_weights.γ₋

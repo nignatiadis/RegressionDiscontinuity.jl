@@ -67,7 +67,7 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
     # as in GLM.jl
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
 
-    res = [h tau_est se_est "unaccounted" z pval first(ci) last(ci)]
+    res = [h tau_est se_est "unaccounted" z pval leftendpoint(ci) rightendpoint(ci)]
     colnms = ["h"; "τ̂"; "se"; "bias"; "z"; "p-val"; "Lower $levstr%"; "Upper $levstr%"]
     rownms = ["Sharp RD estimand"]
     coeftbl = CoefTable(res, colnms, rownms, 6, 5)

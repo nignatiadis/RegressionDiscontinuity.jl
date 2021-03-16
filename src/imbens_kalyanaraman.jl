@@ -34,7 +34,7 @@ function bandwidth(ik::ImbensKalyanaraman, kernel::SupportedKernels, rddata::RDD
     N_right = length(right_idx)
 
     # Step 1: Density and conditional variance at 0
-    h₁ = 1.84 * std(Z) * N^(-1 / 5)
+    h₁ = 1.84 * Statistics.std(Z) * N^(-1 / 5)
 
     h₁_left_idx = findall(-h₁ .<= Z .< 0)
     h₁_right_idx = findall(+h₁ .>= Z .>= 0)
@@ -43,9 +43,9 @@ function bandwidth(ik::ImbensKalyanaraman, kernel::SupportedKernels, rddata::RDD
     N_h₁_right = length(h₁_right_idx)
 
     Ȳ_h₁_left = mean(Y[h₁_left_idx])
-    sd_Y_h₁_left = std(Y[h₁_left_idx])
+    sd_Y_h₁_left = Statistics.std(Y[h₁_left_idx])
     Ȳ_h₁_right = mean(Y[h₁_right_idx])
-    sd_Y_h₁_right = std(Y[h₁_right_idx])
+    sd_Y_h₁_right = Statistics.std(Y[h₁_right_idx])
 
     f̂₀ = (N_h₁_left + N_h₁_right) / 2 / N / h₁
 

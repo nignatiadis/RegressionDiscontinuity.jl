@@ -14,7 +14,6 @@ struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
     cutoff::C
     treated::Symbol
     Ws::BitArray{1}
-    ZsC::VT
     function RunningVariable{T,C,VT}(Zs::VT, cutoff::C, treated) where {T,C,VT}
         treated = Symbol(treated)
         if treated ∉ [:>; :>=; :≥; :≧; :<; :<=; :≤; :≦]
@@ -25,8 +24,7 @@ struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
             treated = :≤
         end
         Ws = broadcast(getfield(Base, treated), Zs, cutoff)
-        ZsC = Zs .- cutoff
-        new(Zs, cutoff, treated, Ws, ZsC)
+        new(Zs, cutoff, treated, Ws)
     end
 end
 
@@ -35,6 +33,14 @@ function RunningVariable(Zs::VT, cutoff::C, treated) where {C,VT}
 end
 
 RunningVariable(Zs; cutoff=0.0, treated=:≥) = RunningVariable(Zs, cutoff, treated)
+
+function Base.getproperty(obj::RunningVariable, sym::Symbol)
+    if sym === :ZsC
+        return obj.Zs .- obj.cutoff
+    else
+        return getfield(obj, sym)
+    end
+end
 
 Base.size(ZsR::AbstractRunningVariable) = Base.size(ZsR.Zs)
 Base.maximum(ZsR::AbstractRunningVariable) = Base.maximum(ZsR.Zs)
@@ -119,7 +125,7 @@ function fit(
     else
         closed = :right
     end
-    min_Z, max_Z = extrema(Zs)    
+    min_Z, max_Z = extrema(Zs)
     l  = floor((min_Z - cutoff) / bin_width) * bin_width  + cutoff
 
     breaks = collect(range(l; step=bin_width, length=nbins))
@@ -220,7 +226,7 @@ end
 """
     RDData(Ys, ZsR::RunningVariable)
 
-A dataset in the regression discontinuity setting. `Ys` is a vector of outcomes. 
+A dataset in the regression discontinuity setting. `Ys` is a vector of outcomes.
 """
 struct RDData{V,R <: AbstractRunningVariable}
     Ys::V
@@ -275,7 +281,7 @@ struct Treated <: RDDIndexing end
 struct Untreated <: RDDIndexing end
 
 function Base.getindex(ZsR::R, i::Interval) where {R <: Union{RunningVariable,RDData}}
-    idx = in.(ZsR.Zs, i)
+    idx = in.(ZsR.Zs, Ref(i))
     Base.getindex(ZsR, idx)
 end
 
