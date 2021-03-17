@@ -1,6 +1,27 @@
 using .Empirikos
 using LinearFractional
 
+
+abstract type AbstractRegressionDiscontinuityTarget end
+abstract type TargetedRegressionDiscontinuityTarget <: AbstractRegressionDiscontinuityTarget end
+
+struct ConstantTarget <: AbstractRegressionDiscontinuityTarget end
+
+Base.@kwdef struct SharpRegressionDiscontinuityTarget{T,S} <: TargetedRegressionDiscontinuityTarget
+    cutoff::T
+    denom_est::S = 1.0
+end
+
+function (sharp_target::SharpRegressionDiscontinuityTarget)(u)
+    likelihood( sharp_target.cutoff, u) / sharp_target.denom_est
+end
+
+function update_target(sharp_target::SharpRegressionDiscontinuityTarget, prior)
+    denom_est = pdf(prior, sharp_target.cutoff)
+    @set sharp_target.denom_est = denom_est
+end
+
+
 function Base.getproperty(obj::RunningVariable{<:EBayesSample}, sym::Symbol)
     if sym === :ZsC
         return response.(obj.Zs) .- obj.cutoff
@@ -20,16 +41,19 @@ end
 
 export NoiseInducedRandomization
 
-struct NoiseInducedRandomization{T,D,F,G,P,V,S} <: RegressionDiscontinuity.SharpRD
+struct NoiseInducedRandomization{RDT, T,D,F,G,P,V,S} <: RegressionDiscontinuity.SharpRD
     response_lower_bound::T
     response_upper_bound::T
     solver
     convexclass::G
     plugin_G::P
     flocalization::F
+    target::RDT
     discretizer::D
     bias_opt_multiplier::S
     σ_squared::V
+    τ_range::S
+    skip_bias::Bool
     maxbias_opt_bisection::Int
     α::S
 end
@@ -41,9 +65,12 @@ function NoiseInducedRandomization(;
     solver,
     plugin_G = :default,
     flocalization = :default,
+    target = ConstantTarget(),
     discretizer = :default,
     bias_opt_multiplier = 1.0,
     σ_squared = :default,
+    τ_range = 2*(response_upper_bound - response_lower_bound),
+    skip_bias=false,
     maxbias_opt_bisection = 50,
     α = 0.05
     )
@@ -54,9 +81,12 @@ function NoiseInducedRandomization(;
         convexclass,
         plugin_G,
         flocalization,
+        target,
         discretizer,
         bias_opt_multiplier,
         σ_squared,
+        τ_range,
+        skip_bias,
         maxbias_opt_bisection,
         α
     )
@@ -90,8 +120,22 @@ function nir_default_discretizer(ZsR::RunningVariable{<:BinomialSample})
     u = min(K, floor(Int, cutoff + window_size))
     #TODO: add checks
     discr_all = FiniteSupportDiscretizer(0:1:K)
-    discr_untreated = FiniteSupportDiscretizer(ℓ:1:(cutoff-1))
-    discr_treated = FiniteSupportDiscretizer(cutoff:1:u)
+    if ZsR.treated === :≥
+        discr_untreated = FiniteSupportDiscretizer(ℓ:1:(cutoff-1))
+        discr_treated = FiniteSupportDiscretizer(cutoff:1:u)
+    elseif ZsR.treated === :>
+        discr_untreated = FiniteSupportDiscretizer(ℓ:1:cutoff)
+        discr_treated = FiniteSupportDiscretizer((cutoff+1):1:u)
+    elseif ZsR.treated === :≤
+        discr_treated = FiniteSupportDiscretizer(ℓ:1:cutoff)
+        discr_untreated = FiniteSupportDiscretizer((cutoff+1):1:u)
+    elseif ZsR.treated === :<
+        discr_treated = FiniteSupportDiscretizer(ℓ:1:(cutoff-1))
+        discr_untreated = FiniteSupportDiscretizer(cutoff:1:u)
+    else
+        throw(ArgumentError("RunningVariable:treated can only be one of :>, :<, :≥, :≤"))
+    end
+
     (untreated = discr_untreated,
      treated = discr_treated,
      all = discr_all)
@@ -111,10 +155,31 @@ function nir_default_discretizer(ZsR::RunningVariable{<:Empirikos.AbstractNormal
     # TODO: add cases dpeending on >= who is treated
     ℓ = cutoff-window_size
     u = cutoff+window_size
-    #TODO: add checks
-    discr_treated = BoundedIntervalDiscretizer{:closed,:open}(range(ℓ; stop=cutoff, length=200))
-    discr_untreated = BoundedIntervalDiscretizer{:closed,:open}(range(cutoff; stop=u, length=200))
-    discr_all = RealLineDiscretizer{:closed,:open}([discr_treated.grid[1:(end-1)]; discr_untreated.grid])
+
+    _range_left = range(ℓ; stop=cutoff, length=200)
+    _range_right = range(cutoff; stop=u, length=200)
+    _range_all = [_range_left[1:(end-1)]; cutoff; _range_right[2:end]]
+
+    if ZsR.treated === :≥
+        discr_untreated = BoundedIntervalDiscretizer{:closed,:open}(_range_left)
+        discr_treated = BoundedIntervalDiscretizer{:closed,:open}(_range_right)
+        discr_all = RealLineDiscretizer{:closed,:open}(_range_all)
+    elseif ZsR.treated === :>
+        discr_untreated = BoundedIntervalDiscretizer{:open,:closed}(_range_left)
+        discr_treated = BoundedIntervalDiscretizer{:open,:closed}(_range_right)
+        discr_all = RealLineDiscretizer{:open,:closed}(_range_all)
+    elseif ZsR.treated === :≤
+        discr_treated = BoundedIntervalDiscretizer{:open,:closed}(_range_left)
+        discr_untreated = BoundedIntervalDiscretizer{:open,:closed}(_range_right)
+        discr_all = RealLineDiscretizer{:open,:closed}(_range_all)
+    elseif ZsR.treated === :<
+        discr_treated = BoundedIntervalDiscretizer{:closed,:open}(_range_left)
+        discr_untreated = BoundedIntervalDiscretizer{:closed,:open}(_range_right)
+        discr_all = RealLineDiscretizer{:closed,:open}(_range_all)
+    else
+        throw(ArgumentError("RunningVariable:treated can only be one of :>, :<, :≥, :≤"))
+    end
+
     (untreated = discr_untreated,
      treated = discr_treated,
      all = discr_all)
@@ -142,7 +207,6 @@ function initialize(nir::NoiseInducedRandomization, ZsR, Ys)
 
     if nir.discretizer === :default
         # check for Homoskedastic
-
         nir = @set nir.discretizer = nir_default_discretizer(ZsR)
     end
 
@@ -161,9 +225,33 @@ function nir_h(γ, Zs_levels, disc = Zs_levels)
 end
 
 
-function nir_weights_quadprog(nir, Zs)
-    model = Model(nir.solver)
+function add_bias_constraint!(model, nir::NoiseInducedRandomization{<:ConstantTarget}, h₊, h₋, t)
     M = nir.bias_opt_multiplier * (nir.response_upper_bound - nir.response_lower_bound) / 2
+    for u in Distributions.support(nir.convexclass)
+        @constraint(model,  M*(h₊(u) - h₋(u)) <=  t)
+        @constraint(model,  M*(h₊(u) - h₋(u)) >= -t)
+    end
+end
+
+function add_bias_constraint!(model, nir::NoiseInducedRandomization{<:TargetedRegressionDiscontinuityTarget}, h₊, h₋, t)
+    target = nir.target
+    M = nir.bias_opt_multiplier * (nir.response_upper_bound - nir.response_lower_bound) / 2
+    τ_range = nir.τ_range/2
+
+    @variable(model, t1)
+    @variable(model, t2)
+
+    for u in Distributions.support(nir.convexclass)
+        @constraint(model,  M*(h₊(u) - h₋(u)) <=  t1)
+        @constraint(model,  M*(h₊(u) - h₋(u)) >= -t1)
+        @constraint(model,  τ_range*(h₊(u) - target(u)) <=  t2)
+        @constraint(model,  τ_range*(h₊(u) - target(u)) >= -t2)
+    end
+    @constraint(model, t1 + t2 <= t)
+end
+
+function nir_weights_quadprog(nir::NoiseInducedRandomization, Zs)
+    model = Model(nir.solver)
     σ_squared = nir.σ_squared
     n = nobs(Zs)
     eb_sample = skedasticity(Zs) === Empirikos.Homoskedastic() ? Zs[1] : throw("Only implemented for homoskedastic samples.")
@@ -179,10 +267,7 @@ function nir_weights_quadprog(nir, Zs)
 
     @variable(model, t)
 
-    for u in Distributions.support(nir.convexclass)
-        @constraint(model,  h₊(u) - h₋(u) <=  t)
-        @constraint(model,  h₊(u) - h₋(u) >= -t)
-    end
+    add_bias_constraint!(model, nir, h₊, h₋, t)
 
     marginal_probs_treated = pdf.(nir.plugin_G, Zs_levels_treated)
     marginal_probs_untreated = pdf.(nir.plugin_G, Zs_levels_untreated)
@@ -193,7 +278,7 @@ function nir_weights_quadprog(nir, Zs)
 
     @variable(model, s)
     @constraint(model, [s;
-                        M*t;
+                        t;
                         sqrt(σ_squared/n) .* γ₊.(nir.discretizer.treated) .* sqrt.(marginal_probs_treated);
                         sqrt(σ_squared/n) .* γ₋.(nir.discretizer.untreated) .* sqrt.(marginal_probs_untreated)
                     ]  ∈ SecondOrderCone())
@@ -206,6 +291,7 @@ function nir_weights_quadprog(nir, Zs)
     γ₋_fun = JuMP.value(γ₋, z->Empirikos.set_response(eb_sample, z))
     γ₋_fun = @set γ₋_fun.discretizer = nir.discretizer.all
 
+    #return γ₊_fun, Zs_levels_treated
     h₊ = nir_h(γ₊_fun, Zs_levels_treated)
     h₋ = nir_h(γ₋_fun, Zs_levels_untreated)
 
@@ -220,7 +306,7 @@ end
 
 
 
-function nir_maxbias(nir, γs, Zs)
+function nir_maxbias(nir::NoiseInducedRandomization{<:ConstantTarget}, γs, Zs)
     M = nir.response_upper_bound - nir.response_lower_bound
 
     bias_model = LinearFractionalModel(nir.solver)
@@ -280,6 +366,100 @@ function nir_maxbias(nir, γs, Zs)
      ξs = ξs, grid_vals = max_vals)
 end
 
+
+function nir_maxbias(nir::NoiseInducedRandomization{<:TargetedRegressionDiscontinuityTarget}, γs, Zs)
+
+    M = nir.response_upper_bound - nir.response_lower_bound
+    τ_range = nir.τ_range
+
+    bias_model = LinearFractionalModel(nir.solver)
+    convexclass = nir.convexclass
+    us = support(convexclass)
+
+    hplus  = γs.h₊.(us)
+    hminus = γs.h₋.(us)
+    ws = nir.target.(us)
+
+
+    π = Empirikos.prior_variable!(bias_model, convexclass)
+    _nparams = Empirikos.nparams(convexclass)
+
+    @variable(bias_model, α[1:_nparams] >= 0)
+    @variable(bias_model, dΤ[1:_nparams] >= 0)
+
+    dkw_band = StatsBase.fit(nir.flocalization, Zs)
+    Empirikos.flocalization_constraint!(bias_model, dkw_band, π)
+
+
+    @constraint(bias_model.model, dot(π.finite_param, hplus) == 1)
+
+    @objective(bias_model.model, JuMP.MOI.MAX_SENSE, dot(π.finite_param, hminus))
+    optimize!(bias_model)
+
+    _ξ_max = JuMP.objective_value(bias_model)
+
+    @objective(bias_model.model, JuMP.MOI.MIN_SENSE, dot(π.finite_param, hminus))
+    optimize!(bias_model)
+    _ξ_min = JuMP.objective_value(bias_model)
+
+    @constraint(bias_model.model, α .<= M.*π.finite_param)
+    @constraint(bias_model.model, dΤ .<= τ_range .* π.finite_param)
+
+    ξ = _ξ_min
+    ξs = range(_ξ_min; stop=_ξ_max, length=nir.maxbias_opt_bisection)
+
+    @constraint(bias_model.model, parametric_constraint, dot(π.finite_param, hminus) == ξ)
+
+
+
+    max_ws = zeros(length(ξs))
+    min_ws = zeros(length(ξs))
+
+    for (i, ξ) in enumerate(ξs)
+        JuMP.set_normalized_rhs(parametric_constraint, ξ)
+        @objective(bias_model.model, JuMP.MOI.MAX_SENSE, dot(π.finite_param, ws))
+        optimize!(bias_model)
+        max_ws[i] = JuMP.objective_value(bias_model)
+
+        @objective(bias_model.model, JuMP.MOI.MIN_SENSE, dot(π.finite_param, ws))
+        optimize!(bias_model)
+        min_ws[i] = JuMP.objective_value(bias_model)
+    end
+
+    @constraint(bias_model.model, weight_constraint, dot(π.finite_param, ws) ==  max_ws[1])
+
+    argmax_ws = zeros(length(ξs))
+    maxvals_ws = zeros(length(ξs))
+
+    #TODOs: also minimize.
+    #TODOs: last resolve.
+    for (i, ξ) in enumerate(ξs[2:(end-1)])
+        JuMP.set_normalized_rhs(parametric_constraint, ξ)
+        _w_list = range(min_ws[i]; stop=max(min_ws[i], max_ws[i]), step=0.02)
+        tmp_vals = zeros(length(_w_list))
+        for (j,w) in enumerate(_w_list)
+            JuMP.set_normalized_rhs(weight_constraint, w)
+            @objective(
+                bias_model.model,
+                JuMP.MOI.MAX_SENSE,
+                dot(α, hplus) - dot(α, hminus)/ξ - dot(dΤ, hplus) + dot(dΤ, ws) / w
+            )
+            optimize!(bias_model)
+            tmp_vals[j] = JuMP.objective_value(bias_model)
+        end
+        argmax_w_idx = argmax(tmp_vals)
+        argmax_ws[i] = _w_list[argmax_w_idx]
+        maxvals_ws[i] = tmp_vals[argmax_w_idx]
+    end
+
+    maxbias = maximum(maxvals_ws)
+
+    (maxbias=maxbias, bias_model=bias_model, ξ=ξ, ξ_min = _ξ_min, ξ_max = _ξ_max,
+     ξs = ξs, max_ws=max_ws, min_ws=min_ws, argmax_ws=argmax_ws, grid_vals = maxvals_ws)
+end
+
+
+
 Base.@kwdef struct FittedNoiseInducedRandomization
     coeftable
     τ̂
@@ -301,7 +481,13 @@ function StatsBase.fit(nir::NoiseInducedRandomization, ZsR::RunningVariable, Ys)
     Zs = ZsR.Zs
     nir = @set nir.plugin_G = StatsBase.fit(nir.plugin_G, summarize(nir.discretizer.all.(Zs)))
 
+    if !isa(nir.target, ConstantTarget)
+        nir = @set nir.target = update_target(nir.target, nir.plugin_G)
+    end
+
+
     γs = nir_weights_quadprog(nir, Zs)
+
     #return γs
     γ₊_denom = sum( γs.γ₊.(Zs,0))
     γ₋_denom = sum( γs.γ₋.(Zs,0))
@@ -316,8 +502,13 @@ function StatsBase.fit(nir::NoiseInducedRandomization, ZsR::RunningVariable, Ys)
 
     se = sqrt(σ̂_squared)
 
-    maxbias_fit =  nir_maxbias(nir, γs, ZsR.Zs)
-    maxbias = maxbias_fit.maxbias
+    if !nir.skip_bias
+        maxbias_fit =  nir_maxbias(nir, γs, ZsR.Zs)
+        maxbias = maxbias_fit.maxbias
+    else
+        maxbias_fit = nothing
+        maxbias = 0.0
+    end
 
     level = 1-nir.α
     ci_halfwidth = bias_adjusted_gaussian_ci(se; maxbias = maxbias, level = level)
