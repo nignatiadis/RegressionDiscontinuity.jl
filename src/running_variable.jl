@@ -99,7 +99,7 @@ function DiscretizedRunningVariable(ZsR::RunningVariable{T,C,VT}, nbins::Int) wh
     min_Z, max_Z = extrema(ZsR)
 
     bin_width = (max_Z - min_Z) * 1.01 / nbins
-   DiscretizedRunningVariable{T,C,VT}(ZsR, nbins, bin_width)
+    DiscretizedRunningVariable{T,C,VT}(ZsR, nbins, bin_width)
  end
 
 
@@ -279,6 +279,16 @@ abstract type RDDIndexing end
 
 struct Treated <: RDDIndexing end
 struct Untreated <: RDDIndexing end
+
+function Base.getindex(ZsR::R, i::Treated) where {R <: Union{RunningVariable,RDData}}
+    idx = ZsR.Ws .== true
+    Base.getindex(ZsR, idx)
+end
+
+function Base.getindex(ZsR::R, i::Untreated) where {R <: Union{RunningVariable,RDData}}
+    idx = ZsR.Ws .== false
+    Base.getindex(ZsR, idx)
+end
 
 function Base.getindex(ZsR::R, i::Interval) where {R <: Union{RunningVariable,RDData}}
     idx = in.(ZsR.Zs, Ref(i))

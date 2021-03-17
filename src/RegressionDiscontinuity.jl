@@ -13,7 +13,6 @@ using JuMP
 using LaTeXStrings
 using LinearAlgebra
 using GLM
-using OffsetArrays
 using QuadGK
 using RecipesBase
 using Requires
