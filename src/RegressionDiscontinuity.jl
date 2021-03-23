@@ -1,11 +1,9 @@
 module RegressionDiscontinuity
 
-using Reexport
 
 import Base: size, getindex, getproperty, propertynames, show
 
-@reexport using Distributions
-using FastGaussQuadrature
+using Distributions
 using Feather
 using IntervalSets
 using JuMP
@@ -19,12 +17,10 @@ using Roots
 using Setfield
 using Statistics
 import Statistics: var
-@reexport using StatsBase
+using StatsBase
 import StatsBase: fit, weights, nobs
 using StatsDiscretizations
-using StatsModels
 using Tables
-using UnPack
 
 
 

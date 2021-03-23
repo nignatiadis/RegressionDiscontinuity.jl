@@ -40,11 +40,15 @@ fit(method::SharpRD, ZsR::RunningVariable, Y) = fit(method, RDData(Y, ZsR))
 
 function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
     c = rddata.cutoff
-    @unpack kernel, variance = method
+    kernel = method.kernel
+    variance = method.variance
+
     h = bandwidth(method.bandwidth, kernel, rddata)
     fitted_kernel = setbandwidth(kernel, h)
 
-    @unpack lb, ub = support(fitted_kernel)
+    lb = support(fitted_kernel).lb
+    ub = support(fitted_kernel).ub
+
     new_support = Interval(lb + c, ub + c)
 
     rddata_filt = rddata[new_support]
@@ -97,7 +101,8 @@ end
     sorted_subset = rdd_fit.data_subset |> DataFrame |> df -> sort(df, [:Zs])
     sorted_preds = predict(rdd_fit.fitted_lm, sorted_subset)
     if show_local_support
-        @unpack lb, ub = support(rdd_fit.fitted_kernel)
+        lb = support(rdd_fit.fitted_kernel).lb
+        ub = support(rdd_fit.fitted_kernel).ub
         @series begin
             label := nothing
             seriestype := :vline

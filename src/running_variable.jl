@@ -127,7 +127,10 @@ function fit(
     nbins=StatsBase.sturges(length(ZsR)),
     bin_width=bin_width(ZsR)
 ) where {T}
-    @unpack cutoff, Zs, treated, ZsC = ZsR
+    cutoff = ZsR.cutoff
+    Zs = ZsR.Zs
+    treated = ZsR.treated
+
     if treated in [:<; :≥]
         closed = :left
     else

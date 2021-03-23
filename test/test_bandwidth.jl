@@ -1,9 +1,6 @@
 
 using DataFrames
-
 using GLM
-
-using UnPack
 
 using Feather
 using RegressionDiscontinuity
@@ -125,10 +122,6 @@ Ys = lee08_rdd.Ys
 ZsR = lee08_rdd.ZsR
 
 bw_kernel = SymTriangularDist(0, bw_ik_triang)
-
-support(bw_kernel)
-
-#ZsR[support(bw_kernel)]
 
 
 

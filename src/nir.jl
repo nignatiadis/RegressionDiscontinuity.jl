@@ -477,7 +477,7 @@ end
 
 function StatsBase.fit(nir::NoiseInducedRandomization, ZsR::RunningVariable, Ys)
     nir = initialize(nir, ZsR, Ys)
-    @unpack convexclass = nir
+    convexclass = nir.convexclass
     Zs = ZsR.Zs
     nir = @set nir.plugin_G = StatsBase.fit(nir.plugin_G, summarize(nir.discretizer.all.(Zs)))
 

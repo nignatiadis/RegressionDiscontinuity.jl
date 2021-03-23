@@ -74,8 +74,6 @@ function bandwidth(
     rf = 2 * right_coef[3] .+ 6 * right_coef[4] * right_tbl.Zs + 12 * right_coef[5] * right_tbl.Zs.^2
     rh = κ * (right_mse * (right_tbl.Zs[end] - c) / sum(abs2, rf))^(1/5)
 
-
-    @show length(left_tbl.Zs), length(right_tbl.Zs), left_tbl.Zs[1], right_tbl.Zs[end]
     # Taking the average
     h = (rh + lh)/2
 end
