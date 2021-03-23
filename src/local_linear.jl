@@ -1,5 +1,3 @@
-abstract type BandwidthSelector end
-
 abstract type SharpRD end
 
 abstract type VarianceEstimator end
@@ -12,8 +10,6 @@ Base.@kwdef struct NaiveLocalLinearRD{K,B,V<:VarianceEstimator} <: SharpRD
     bandwidth::B
     variance::V = EickerHuberWhite()
 end
-
-
 
 Base.@kwdef struct FittedLocalLinearRD{R,F,K,B,S,T,C}
     rdd_setting::R

@@ -4,7 +4,6 @@ authors = ["Nikos Ignatiadis <nikos.ignatiadis01@gmail.com> and contributors"]
 version = "0.1.0"
 
 [deps]
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 Feather = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
@@ -28,7 +27,6 @@ Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [compat]
-DataFrames = "0.20, 0.21, 0.22"
 Distributions = "0.23, 0.24"
 FastGaussQuadrature = "0.4"
 Feather = "0.5"
@@ -49,10 +47,3 @@ StatsModels = "0.6"
 Tables = "1.4"
 UnPack = "1.0"
 julia = "1.5"
-
-[extras]
-Hypatia = "b99e6be6-89ff-11e8-14f8-45c827f4f8f2"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Hypatia", "Test"]

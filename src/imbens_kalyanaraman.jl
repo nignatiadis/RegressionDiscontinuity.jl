@@ -1,7 +1,7 @@
 abstract type BandwidthSelector end
 
 
-bandwidth(h::Number, kernel, rddata) = h
+bandwidth(h::Number, args...) = h
 _string(::Number) = ""
 
 struct ImbensKalyanaraman <: BandwidthSelector end

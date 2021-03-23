@@ -1,9 +1,21 @@
-# RegressionDiscontinuity
+<div align="center">
+    <img src="docs/src/assets/logo.svg" alt="RegressionDiscontinuity.jl" width="220">
+</div>
 
-[![Build Status](https://github.com/nignatiadis/RegressionDiscontinuity.jl/workflows/CI/badge.svg)](https://github.com/nignatiadis/RegressionDiscontinuity.jl/actions)
-[![Coverage](https://codecov.io/gh/nignatiadis/RegressionDiscontinuity.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/nignatiadis/RegressionDiscontinuity.jl)
+<h2 align="center">RegressionDiscontinuity.jl</h2>
+<p align="center"> A Julia package for Regression Discontinuity analyses.</p>
+<p align="center">
+  <a href="https://github.com/nignatiadis/RegressionDiscontinuity.jl/workflows/CI/badge.svg">
+    <img src="https://github.com/nignatiadis/RegressionDiscontinuity.jl/workflows/CI/badge.svg"
+         alt="Build Status">
+  </a>
+  <a href="https://codecov.io/gh/nignatiadis/RegressionDiscontinuity.jl/">
+    <img src="https://codecov.io/gh/nignatiadis/RegressionDiscontinuity.jl/branch/master/graph/badge.svg"
+         alt="Coverage">
+  </a>
+</p>
 
-A Julia package for Regression Discontinuity analyses.
+
 
 ## Examples
 
@@ -71,11 +83,9 @@ The McCrary (2008) test for manipulation in the
 running variable for RDD.
           ⋅⋅⋅⋅ Bin size: 0.0112
           ⋅⋅⋅⋅ Bandwidth size: 0.2426
-          ⋅⋅⋅⋅ Number of iterations: 179
 ───────────────────────────────────────────────
                     θ̂         σ̂     z   p-val
 ───────────────────────────────────────────────
 McCrary Test  0.102688  0.0798507  1.29  0.1984
 ───────────────────────────────────────────────
 ```
-

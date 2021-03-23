@@ -4,7 +4,6 @@ using Reexport
 
 import Base: size, getindex, getproperty, propertynames, show
 
-using DataFrames
 @reexport using Distributions
 using FastGaussQuadrature
 using Feather

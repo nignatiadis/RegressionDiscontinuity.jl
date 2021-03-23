@@ -34,6 +34,14 @@ end
 
 RunningVariable(Zs; cutoff=0.0, treated=:≥) = RunningVariable(Zs, cutoff, treated)
 
+function Base.show(io::IO, ::MIME"text/plain", obj::RunningVariable)
+    println(io, "Running Variable with sharp treatment for Z ", obj.treated, " ",obj.cutoff)
+    n_treated = sum(obj.Ws)
+    n_untreated = length(obj) - n_treated
+    println(io, "$(n_treated) treated units | $(n_untreated) untreated units ")
+    Base.show(IOContext(io, :compact => true), obj.Zs)
+end
+
 function Base.getproperty(obj::RunningVariable, sym::Symbol)
     if sym === :ZsC
         return obj.Zs .- obj.cutoff
@@ -133,67 +141,6 @@ function fit(
     fit(Histogram{T}, ZsR, breaks; closed=closed)
 end
 
-# function fit(
-#    ::Type{Histogram{T}},
-#    ZsR::AbstractRunningVariable;
-#    nbins
-# ) where {T}
-#    @unpack cutoff, Zs, treated, ZsC = ZsR
-#    if treated in [:<; :≥]
-#        closed = :left
-#    else
-#        closed = :right
-#    end
-#    nbins = iseven(nbins) ? nbins : nbins + 1
-#
-#    min_Z, max_Z = extrema(Zs)
-#
-#    bin_width = (max_Z - min_Z) * 1.01 / nbins
-#
-#    prop_right = (max_Z - cutoff) * 1.01 / (max_Z - min_Z)
-#    prop_left = (cutoff - min_Z) * 1.01 / (max_Z - min_Z)
-#    nbins_right = ceil(Int, nbins * prop_right)
-#    nbins_left = ceil(Int, nbins * prop_left)
-#
-#    breaks_left = reverse(range(cutoff; step=-bin_width, length=nbins_left))
-#    breaks_right = range(cutoff; step=bin_width, length=nbins_right)
-#
-#    breaks = collect(sort([breaks_left; breaks_right]))
-#
-#    fit(Histogram{T}, ZsR, breaks; closed=closed)
-# end
-#
-# function fit(
-#    ::Type{Histogram{T}},
-#    ZsR::AbstractRunningVariable;
-#    bin_width) where {T}
-#
-#    @unpack cutoff, Zs, treated, ZsC = ZsR
-#    if treated in [:<; :≥]
-#        closed = :left
-#    else
-#        closed = :right
-#    end
-#
-#    min_Z, max_Z = extrema(Zs)
-#
-#    nbins = (max_Z - min_Z) * 1.01 / bin_width
-#    nbins = iseven(nbins) ? nbins : nbins + 1
-#
-#    prop_right = (max_Z - cutoff) * 1.01 / (max_Z - min_Z)
-#    prop_left = (cutoff - min_Z) * 1.01 / (max_Z - min_Z)
-#    nbins_right = ceil(Int, nbins * prop_right)
-#    nbins_left = ceil(Int, nbins * prop_left)
-#
-#    breaks_left = reverse(range(cutoff; step=-bin_width, length=nbins_left))
-#    breaks_right = range(cutoff; step=bin_width, length=nbins_right)
-#
-#    breaks = collect(sort([breaks_left; breaks_right]))
-#
-#    fit(Histogram{T}, ZsR, breaks; closed=closed)
-# end
-
-
 
 @recipe function f(ZsR::AbstractRunningVariable)
 
@@ -265,7 +212,7 @@ function Base.getproperty(obj::RDData, sym::Symbol)
     if sym in (:Ys, :ZsR)
         return getfield(obj, sym)
     else
-        return getfield(obj.ZsR, sym)
+        return getproperty(obj.ZsR, sym)
     end
 end
 
