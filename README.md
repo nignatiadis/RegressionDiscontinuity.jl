@@ -23,7 +23,7 @@ We demonstrate the basic functionality of the package using the U.S. House Elect
 
 ```julia
 julia> using RegressionDiscontinuity
-julia> data = load_rdd_data(:lee08)
+julia> data = RDData(RegressionDiscontinuity.Lee08())
 ```
 
 ### Naive Local Linear Regression

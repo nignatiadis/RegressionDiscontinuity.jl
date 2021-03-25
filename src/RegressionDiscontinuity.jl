@@ -1,24 +1,25 @@
 module RegressionDiscontinuity
 
 
-import Base: size, getindex, getproperty, propertynames, show
 
+# Julia Standard Library packages and imports
+import Base: size, getindex, getproperty, propertynames, show
+using DelimitedFiles
+using LinearAlgebra
+using Statistics; import Statistics: var
+
+# Julia Registry packages
 using Distributions
-using Feather
 using IntervalSets
 using JuMP
 using LaTeXStrings
-using LinearAlgebra
 using GLM
 using QuadGK
 using RecipesBase
 using Requires
 using Roots
 using Setfield
-using Statistics
-import Statistics: var
-using StatsBase
-import StatsBase: fit, weights, nobs
+using StatsBase; import StatsBase: fit, weights, nobs
 using StatsDiscretizations
 using Tables
 
@@ -44,7 +45,6 @@ export RunningVariable,
     RDData,
     Treated,
     Untreated,
-    load_rdd_data,
     Rectangular,
     bandwidth,
     ImbensKalyanaraman,

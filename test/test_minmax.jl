@@ -4,7 +4,8 @@ using Roots, Distributions
 using GLM, DataFrames
 using Test
 
-data = load_rdd_data(:lee08)
+data = RDData(RegressionDiscontinuity.Lee08())
+
 result = fit(
     ImbensWagerOptRD(
         B = 14.28,

@@ -1,6 +1,5 @@
 # Testing the function
 using Test
-using Feather
 
 using RegressionDiscontinuity
 using Distributions
@@ -10,6 +9,7 @@ using DataFrames
 
 # Testing that the package doesn't detect false positives:
 R1 = rand(Normal(), 100_000)
+
 rv1 = RunningVariable(R1)
 test1 = fit(McCraryTest(), rv1)
 
@@ -34,7 +34,9 @@ test3 = fit(McCraryTest(), rv3)
 
 
 # Testing the package with real data.
-lee08 = load_rdd_data(:lee08)
+lee08 = RDData(RegressionDiscontinuity.Lee08())
+
+lee08.ZsR
 lee08_mccrary = fit(McCraryTest(), lee08.ZsR)
 
 

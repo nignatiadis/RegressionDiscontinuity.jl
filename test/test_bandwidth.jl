@@ -2,7 +2,7 @@
 using DataFrames
 using GLM
 
-using Feather
+using CSV
 using RegressionDiscontinuity
 
 using Statistics
@@ -11,10 +11,10 @@ using StatsModels
 
 using Test
 
-lee08_path = joinpath(dirname(@__FILE__), "..", "data", "lee08.feather")
-lee08 = Feather.read(lee08_path)
+lee08_path = joinpath(dirname(@__FILE__), "..", "data", "lee08.csv")
+lee08 = CSV.File(lee08_path) |> DataFrame
 
-lee08_rdd = load_rdd_data(:lee08)
+lee08_rdd = RDData(RegressionDiscontinuity.Lee08())
 
 
 Z = lee08.margin ./ 100
