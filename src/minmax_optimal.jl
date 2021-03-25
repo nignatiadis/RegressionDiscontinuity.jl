@@ -28,12 +28,7 @@ Base.@kwdef struct FittedOptRD
     B::Float64
     coeftable::Any
 end
-"""
-    Homoskedastic()
 
-Variance estimator for the RD estimator that assumes homoskedasticity.
-"""
-struct Homoskedastic <: VarianceEstimator end
 
 function estimate_var(data::RDData)
     fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * ZsC), data)

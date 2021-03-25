@@ -1,4 +1,5 @@
 using .Empirikos
+using ForwardDiff
 using LinearFractional
 
 
@@ -548,4 +549,161 @@ end
     yguide --> L"\gamma(z)"
     xguide --> L"z"
     xs, ys
+end
+
+
+
+### Curvature Bound ###
+
+
+
+Base.@kwdef struct NoiseInducedRandomizationCurvature{EB, G<:DiscretePriorClass, T, S, TT} <: WorstCaseCurvatureSelector
+    response_lower_bound::T = 0.0
+    response_upper_bound::T = 1.0
+    density_lower_bound::S
+    ebayes_sample::EB
+    solver
+    convexclass::G =  DiscretePriorClass(-2.5:0.01:2.5)
+    n_grid_f_prime::Int = 200
+    width_grid_f_double_prime::TT = 0.2
+end
+
+
+Base.@kwdef struct FittedNoiseInducedRandomizationCurvature{S,T, C<:NoiseInducedRandomizationCurvature}
+    max_curvature::S
+    us::T
+    πs::T
+    α0s::T
+    f
+    f′
+    f′′
+    nir_curvature::C
+end
+
+function curvature(nir_curvature::FittedNoiseInducedRandomizationCurvature)
+    nir_curvature.max_curvature
+end
+
+function curvature(nir_curvature::NoiseInducedRandomizationCurvature)
+    curvature(fit( nir_curvature ))
+end
+
+function fit(nir_curvature::NoiseInducedRandomizationCurvature)
+    convexclass = nir_curvature.convexclass
+    us = support(convexclass)
+    _nparams = Empirikos.nparams(convexclass)
+    M = nir_curvature.response_upper_bound - nir_curvature.response_lower_bound
+
+    model = Model(nir_curvature.solver)
+
+    @variable(model, π[1:_nparams] >= 0)
+    @variable(model, t >= 0)
+    @constraint(model, sum(π) == t)
+    @variable(model, H[1:_nparams] >= 0)
+    @constraint(model, H .<=  M.* π)
+
+    f_vec(z) = likelihood.(Empirikos.set_response(nir_curvature.ebayes_sample, z), us)
+    f_vec_prime(z) = ForwardDiff.derivative(f_vec, z)
+
+    f_vec_0 = f_vec(0.0)
+    f_vec_prime_0 = f_vec_prime(0.0)
+    f_vec_double_prime_0 = ForwardDiff.derivative(f_vec_prime, 0.0)
+
+
+    f = @expression(model, dot(π, f_vec_0))
+    f′ = @expression(model, dot(π, f_vec_prime_0))
+    f′′ = @expression(model, dot(π, f_vec_double_prime_0))
+
+    α = @expression(model, dot(H, f_vec_0))
+    α′ = @expression(model, dot(H, f_vec_prime_0))
+    α′′ = @expression(model, dot(H, f_vec_double_prime_0))
+
+
+    f_min = nir_curvature.density_lower_bound
+    @constraint(model, f >= f_min*t)
+    @constraint(model, f == 1)
+
+    @objective(model, JuMP.MOI.MAX_SENSE,  f′)
+    optimize!(model)
+    _ξ_max = JuMP.value(f′)
+    ξs = range(0.0; stop = _ξ_max, length = nir_curvature.n_grid_f_prime)
+
+    @constraint(model, parametric_constraint, f′ == ξs[1])
+
+
+    # range for f' and f''
+    max_ws = zeros(length(ξs))
+    min_ws = zeros(length(ξs))
+
+
+    for (i, ξ) in enumerate(ξs)
+        JuMP.set_normalized_rhs(parametric_constraint, ξ)
+        @objective(model, JuMP.MOI.MAX_SENSE, f′′)
+        optimize!(model)
+        max_ws[i] = JuMP.value(f′′)
+
+        @objective(model, JuMP.MOI.MIN_SENSE, f′′)
+        optimize!(model)
+        min_ws[i] = JuMP.value(f′′)
+    end
+
+
+    @constraint(model, weight_constraint, f′′ ==  max_ws[1])
+
+    argmax_ws = zeros(length(ξs))
+    maxvals_ws = zeros(length(ξs))
+
+    for (i, ξ) in enumerate(ξs[2:(end-1)])
+        JuMP.set_normalized_rhs(parametric_constraint, ξ)
+        _w_list = range(min_ws[i]; stop=max(min_ws[i], max_ws[i]),
+                     step=nir_curvature.width_grid_f_double_prime)
+        tmp_vals = zeros(length(_w_list))
+        for (j,w) in enumerate(_w_list)
+            JuMP.set_normalized_rhs(weight_constraint, w)
+            @objective(
+                model,
+                JuMP.MOI.MAX_SENSE,
+                α′′ - 2*α′*ξ - α*w + 2α*ξ^2
+            )
+            optimize!(model)
+            tmp_vals[j] = JuMP.objective_value(model)
+        end
+        argmax_w_idx = argmax(tmp_vals)
+        argmax_ws[i] = _w_list[argmax_w_idx]
+        maxvals_ws[i] = tmp_vals[argmax_w_idx]
+    end
+
+    max_curvature = maximum(maxvals_ws)
+    _idx_ξ_worst_case = argmax(maxvals_ws)
+    _ξ_worst_case= ξs[_idx_ξ_worst_case]
+    w_worst_case = argmax_ws[_idx_ξ_worst_case]
+    JuMP.set_normalized_rhs(parametric_constraint, _ξ_worst_case)
+    JuMP.set_normalized_rhs(weight_constraint, w_worst_case)
+    @objective(
+        model,
+        JuMP.MOI.MAX_SENSE,
+        α′′ - 2*α′*_ξ_worst_case - α*w_worst_case + 2α*_ξ_worst_case^2
+    )
+    optimize!(model)
+
+    π_worst = JuMP.value.(π)
+    H_worst = JuMP.value.(H)
+
+    πs = π_worst ./ sum(π_worst)
+    α0s = ifelse.( iszero.(π_worst), zero(eltype(π_worst)) , H_worst ./ π_worst)
+
+    myf(z) = dot(H_worst, f_vec(z) )/dot(π_worst, f_vec(z) )
+    myf′(z) = ForwardDiff.derivative(myf, z)
+    myf′′(z) = ForwardDiff.derivative(myf′, z)
+
+    FittedNoiseInducedRandomizationCurvature(;
+        max_curvature = myf′′(0),
+        us=collect(us),
+        πs=πs,
+        α0s=α0s,
+        f=myf,
+        f′=myf′,
+        f′′=myf′′,
+        nir_curvature = nir_curvature
+    )
 end

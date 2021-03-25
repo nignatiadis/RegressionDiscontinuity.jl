@@ -1,8 +1,3 @@
-abstract type SharpRD end
-
-abstract type VarianceEstimator end
-
-struct EickerHuberWhite <: VarianceEstimator end
 _string(::EickerHuberWhite) = "Eicker White Huber variance"
 
 Base.@kwdef struct NaiveLocalLinearRD{K,B,V<:VarianceEstimator} <: SharpRD

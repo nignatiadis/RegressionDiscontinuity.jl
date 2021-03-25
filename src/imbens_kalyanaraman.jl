@@ -1,9 +1,3 @@
-abstract type BandwidthSelector end
-
-
-bandwidth(h::Number, args...) = h
-_string(::Number) = ""
-
 struct ImbensKalyanaraman <: BandwidthSelector end
 
 _string(::ImbensKalyanaraman) = "Imbens Kalyanaraman bandwidth"

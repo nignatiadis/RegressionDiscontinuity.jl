@@ -23,8 +23,9 @@ using StatsDiscretizations
 using Tables
 
 
-
+include("types.jl")
 include("running_variable.jl")
+include("discretization.jl")
 include("load_example_data.jl")
 include("kernels.jl")
 include("imbens_kalyanaraman.jl")
@@ -36,6 +37,8 @@ function __init__()
     @require Empirikos="cab608d6-c565-4ea1-96d6-ce5441ba21b0" include("nir.jl")
 end
 
+
+export fit
 
 export RunningVariable,
     RDData,
