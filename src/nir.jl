@@ -1,7 +1,7 @@
 using .Empirikos
 using ForwardDiff
 using LinearFractional
-
+using StatsFuns
 
 abstract type AbstractRegressionDiscontinuityTarget end
 abstract type TargetedRegressionDiscontinuityTarget <: AbstractRegressionDiscontinuityTarget end
@@ -69,7 +69,7 @@ function NoiseInducedRandomization(;
     target = ConstantTarget(),
     discretizer = :default,
     bias_opt_multiplier = 1.0,
-    σ_squared = :default,
+    σ_squared = abs2(response_upper_bound - response_lower_bound),
     τ_range = 2*(response_upper_bound - response_lower_bound),
     skip_bias=false,
     maxbias_opt_bisection = 50,
@@ -115,10 +115,9 @@ function nir_default_discretizer(ZsR::RunningVariable{<:BinomialSample})
     Zs = ZsR.Zs
     skedasticity(Zs) === Empirikos.Homoskedastic() || throw("Only homoskedastic case supported.")
     K = ntrials(Zs[1])
-    window_size = 3*0.5*sqrt(K)
     # TODO: add cases dpeending on >= who is treated
-    ℓ = max(0, ceil(Int, cutoff - window_size))
-    u = min(K, floor(Int, cutoff + window_size))
+    ℓ = 0 #max(0, ceil(Int, cutoff - window_size))
+    u = K #min(K, floor(Int, cutoff + window_size))
     #TODO: add checks
     discr_all = FiniteSupportDiscretizer(0:1:K)
     if ZsR.treated === :≥
@@ -152,13 +151,13 @@ function nir_default_discretizer(ZsR::RunningVariable{<:Empirikos.AbstractNormal
     Zs = ZsR.Zs
     skedasticity(Zs) === Empirikos.Homoskedastic() || throw("Only homoskedastic case supported.")
     ν = Empirikos.std(Zs[1])
-    window_size = 3*ν
+    window_size = 15*ν
     # TODO: add cases dpeending on >= who is treated
     ℓ = cutoff-window_size
     u = cutoff+window_size
 
-    _range_left = range(ℓ; stop=cutoff, length=200)
-    _range_right = range(cutoff; stop=u, length=200)
+    _range_left = range(ℓ; stop=cutoff, length=1000)
+    _range_right = range(cutoff; stop=u, length=1000)
     _range_all = [_range_left[1:(end-1)]; cutoff; _range_right[2:end]]
 
     if ZsR.treated === :≥
@@ -211,7 +210,7 @@ function initialize(nir::NoiseInducedRandomization, ZsR, Ys)
         nir = @set nir.discretizer = nir_default_discretizer(ZsR)
     end
 
-    if nir.σ_squared === :default
+    if nir.σ_squared === :lm
         lm_fit = fit(LinearModel, @formula(Ys~response(Zs)*Ws), RDData(Ys, ZsR))
         σ_squared = mean(abs2, residuals(lm_fit))
         nir = @set nir.σ_squared = σ_squared
@@ -504,7 +503,7 @@ function StatsBase.fit(nir::NoiseInducedRandomization, ZsR::RunningVariable, Ys)
     se = sqrt(σ̂_squared)
 
     if !nir.skip_bias
-        maxbias_fit =  nir_maxbias(nir, γs, ZsR.Zs)
+        maxbias_fit =  nir_maxbias(nir, γs, Zs)
         maxbias = maxbias_fit.maxbias
     else
         maxbias_fit = nothing
@@ -531,7 +530,7 @@ end
     γ₋ = rdd_weights.γ₋
     γ₊ = rdd_weights.γ₊
     ys = [.- collect(γ₋.dictionary); collect(γ₊.dictionary)]
-    xs = [γ₋.discretizer; γ₊.discretizer]
+    xs = response.([collect(keys(γ₋.dictionary)); collect(keys(γ₊.dictionary))])
 
     @series begin
         seriestype := :scatter
@@ -557,11 +556,12 @@ end
 
 
 
-Base.@kwdef struct NoiseInducedRandomizationCurvature{EB, G<:DiscretePriorClass, T, S, TT} <: WorstCaseCurvatureSelector
+Base.@kwdef struct NoiseInducedRandomizationCurvature{EB, F, G<:DiscretePriorClass, T, S, TT} <: WorstCaseCurvatureSelector
     response_lower_bound::T = 0.0
     response_upper_bound::T = 1.0
     density_lower_bound::S
     ebayes_sample::EB
+    flocalization::F = nothing
     solver
     convexclass::G =  DiscretePriorClass(-2.5:0.01:2.5)
     n_grid_f_prime::Int = 200
@@ -593,7 +593,7 @@ function fit(nir_curvature::NoiseInducedRandomizationCurvature)
     us = support(convexclass)
     _nparams = Empirikos.nparams(convexclass)
     M = nir_curvature.response_upper_bound - nir_curvature.response_lower_bound
-
+    Z = nir_curvature.ebayes_sample
     model = Model(nir_curvature.solver)
 
     @variable(model, π[1:_nparams] >= 0)
@@ -602,12 +602,27 @@ function fit(nir_curvature::NoiseInducedRandomizationCurvature)
     @variable(model, H[1:_nparams] >= 0)
     @constraint(model, H .<=  M.* π)
 
-    f_vec(z) = likelihood.(Empirikos.set_response(nir_curvature.ebayes_sample, z), us)
-    f_vec_prime(z) = ForwardDiff.derivative(f_vec, z)
-
-    f_vec_0 = f_vec(0.0)
-    f_vec_prime_0 = f_vec_prime(0.0)
-    f_vec_double_prime_0 = ForwardDiff.derivative(f_vec_prime, 0.0)
+    if isa(Z, BinomialSample)
+        @show "binom"
+        n_trials = ntrials(Z)
+        function quasibinom_pdf(n, p, k)
+            m = clamp(k, 0, n)
+            val = betalogpdf(m + 1, n - m + 1, p) - log(n + 1)
+            exp(val)
+        end
+        f_vec(z) = quasibinom_pdf.(n_trials, us, z)
+        tmp_cutoff = response(Z)
+        h = 1e-5
+        f_vec_0 = f_vec(tmp_cutoff)
+        f_vec_prime_0 = (f_vec(tmp_cutoff + h ) .- f_vec(tmp_cutoff - h ))./(2h)
+        f_vec_double_prime_0 = (f_vec(tmp_cutoff + h ) .- 2f_vec_0 .+ f_vec(tmp_cutoff - h ))/abs2(h)
+    else
+        f_vec(z) = likelihood.(Empirikos.set_response(nir_curvature.ebayes_sample, z), us)
+        f_vec_prime(z) = ForwardDiff.derivative(f_vec, z)
+        f_vec_0 = f_vec(0.0)
+        f_vec_prime_0 = f_vec_prime(0.0)
+        f_vec_double_prime_0 = ForwardDiff.derivative(f_vec_prime, 0.0)
+    end
 
 
     f = @expression(model, dot(π, f_vec_0))
@@ -692,12 +707,13 @@ function fit(nir_curvature::NoiseInducedRandomizationCurvature)
     πs = π_worst ./ sum(π_worst)
     α0s = ifelse.( iszero.(π_worst), zero(eltype(π_worst)) , H_worst ./ π_worst)
 
+
     myf(z) = dot(H_worst, f_vec(z) )/dot(π_worst, f_vec(z) )
     myf′(z) = ForwardDiff.derivative(myf, z)
     myf′′(z) = ForwardDiff.derivative(myf′, z)
 
     FittedNoiseInducedRandomizationCurvature(;
-        max_curvature = myf′′(0),
+        max_curvature = f_vec, #myf′′(0),
         us=collect(us),
         πs=πs,
         α0s=α0s,
