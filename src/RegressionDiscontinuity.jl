@@ -15,6 +15,7 @@ using JuMP
 using LaTeXStrings
 using GLM
 using QuadGK
+using RangeHelpers
 using RecipesBase
 using Requires
 using Roots
