@@ -1,7 +1,7 @@
 using .Empirikos
-using ForwardDiff
+using Zygote
 using LinearFractional
-using StatsFuns
+using SpecialFunctions
 
 abstract type AbstractRegressionDiscontinuityTarget end
 abstract type TargetedRegressionDiscontinuityTarget <: AbstractRegressionDiscontinuityTarget end
@@ -622,24 +622,16 @@ function fit(nir_curvature::NoiseInducedRandomizationCurvature)
         @show "binom"
         n_trials = ntrials(Z)
         function quasibinom_pdf(n, p, k)
-            m = clamp(k, 0, n)
-            val = betalogpdf(m + 1, n - m + 1, p) - log(n + 1)
-            exp(val)
+            gamma(n + 1)/gamma(k+1)/gamma(n-k+1)*p^k*(1-p)^(n-k)
         end
-        f_vec = z -> quasibinom_pdf.(n_trials, us, z)
-        tmp_cutoff = response(Z)
-        h = 1e-5
-        f_vec_0 = f_vec(tmp_cutoff)
-        f_vec_prime_0 = (f_vec(tmp_cutoff + h ) .- f_vec(tmp_cutoff - h ))./(2h)
-        f_vec_double_prime_0 = (f_vec(tmp_cutoff + h ) .- 2f_vec_0 .+ f_vec(tmp_cutoff - h ))/abs2(h)
+        f_vec = [z -> quasibinom_pdf(n_trials, u, z) for u in us]
     else
-        f_vec =  z -> likelihood.(Empirikos.set_response(nir_curvature.ebayes_sample, z), us)
-        f_vec_prime(z) = ForwardDiff.derivative(f_vec, z)
-        f_vec_0 = f_vec(0.0)
-        f_vec_prime_0 = f_vec_prime(0.0)
-        f_vec_double_prime_0 = ForwardDiff.derivative(f_vec_prime, 0.0)
+        f_vec = [z -> likelihood(Empirikos.set_response(nir_curvature.ebayes_sample, z), u) for u in us]
     end
-
+    cutoff = Float64(response(Z))
+    f_vec_0 = [f(cutoff) for f in f_vec]
+    f_vec_prime_0 = [gradient(f, cutoff)[1] for f in f_vec]
+    f_vec_double_prime_0 = [hessian(f, cutoff) for f in f_vec]
 
     f = @expression(model, dot(π, f_vec_0))
     f′ = @expression(model, dot(π, f_vec_prime_0))
@@ -724,12 +716,12 @@ function fit(nir_curvature::NoiseInducedRandomizationCurvature)
     α0s = ifelse.( iszero.(π_worst), zero(eltype(π_worst)) , H_worst ./ π_worst)
 
 
-    myf(z) = dot(H_worst, f_vec(z) )/dot(π_worst, f_vec(z) )
-    myf′(z) = ForwardDiff.derivative(myf, z)
-    myf′′(z) = ForwardDiff.derivative(myf′, z)
+    myf = z -> dot(H_worst, [f(z) for f in f_vec])/dot(π_worst, [f(z) for f in f_vec])
+    myf′ = z -> gradient(myf, z)[1]
+    myf′′ = z -> hessian(myf, z)
 
     FittedNoiseInducedRandomizationCurvature(;
-        max_curvature = myf′′(0),
+        max_curvature = myf′′(cutoff),
         us=collect(us),
         πs=πs,
         α0s=α0s,
