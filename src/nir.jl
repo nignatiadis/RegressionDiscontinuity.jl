@@ -1,7 +1,7 @@
 using .Empirikos
 using Zygote
 using LinearFractional
-using SpecialFunctions
+using StatsFuns
 
 abstract type AbstractRegressionDiscontinuityTarget end
 abstract type TargetedRegressionDiscontinuityTarget <: AbstractRegressionDiscontinuityTarget end
@@ -115,10 +115,9 @@ function nir_default_discretizer(ZsR::RunningVariable{<:BinomialSample})
     Zs = ZsR.Zs
     skedasticity(Zs) === Empirikos.Homoskedastic() || throw("Only homoskedastic case supported.")
     K = ntrials(Zs[1])
-    # TODO: add cases dpeending on >= who is treated
-    ℓ = 0 #max(0, ceil(Int, cutoff - window_size))
-    u = K #min(K, floor(Int, cutoff + window_size))
-    #TODO: add checks
+    ℓ = 0
+    u = K
+
     discr_all = FiniteSupportDiscretizer(0:1:K)
     if ZsR.treated === :≥
         discr_untreated = FiniteSupportDiscretizer(ℓ:1:(cutoff-1))
@@ -621,8 +620,9 @@ function fit(nir_curvature::NoiseInducedRandomizationCurvature)
     if isa(Z, BinomialSample)
         @show "binom"
         n_trials = ntrials(Z)
-        function quasibinom_pdf(n, p, k)
-            gamma(n + 1)/gamma(k+1)/gamma(n-k+1)*p^k*(1-p)^(n-k)
+        function quasibinom_pdf(n, p, m)
+            val = betalogpdf(m + 1, n - m + 1, p) - log(n + 1)
+            exp(val)
         end
         f_vec = [z -> quasibinom_pdf(n_trials, u, z) for u in us]
     else
