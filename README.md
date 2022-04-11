@@ -81,10 +81,10 @@ julia> using Empirikos
 julia> using MosekTools
 julia> ecls_tbl = RegressionDiscontinuity.raw_table(RegressionDiscontinuity.ECLS_EIWW())
 julia> Zs = NormalSample.(ecls_tbl.Z, minimum(ecls_tbl.SE))
-julia> ZsR = RunningVariable(Zs, -0.2, :≧)
+julia> ZsR = RunningVariable(Zs, -0.2, :≥)
 julia> Ys = ecls_tbl.Y
 julia> nir = NoiseInducedRandomization(; solver=Mosek.Optimizer)
-julia> nir_it = fit(nir, ZsR, Ys)
+julia> nir_fit = fit(nir, ZsR, Ys)
 ```
 
 ```julia
