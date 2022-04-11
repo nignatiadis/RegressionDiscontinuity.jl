@@ -56,6 +56,7 @@ The estimate assumes a bound of 14.28 on the second derivative of the conditiona
 mean functions for the outcome in the Lee data. The optimization uses a user specified solver. The fastest option is [Mosek](https://docs.mosek.com/9.2/install/installation.html), which is free for academics. An open source alternative is [Hypatia.jl](https://github.com/chriscoey/Hypatia.jl), but it is currently slower for this problem.  
 
 ```julia
+julia> using RegressionDiscontinuity
 julia> using MosekTools
 julia> fit(ImbensWagerOptRD(B=14.28, solver=Mosek.Optimizer), data.ZsR, data.Ys)
 ```
@@ -70,11 +71,37 @@ Sharp RD estimand  0.0592235  0.0197343  0.0101986  0.0159069    0.10254
 ────────────────────────────────────────────────────────────────────────
 ```
 
+### Noise-Induced Randomization
+
+We conduct inference using Noise-Induced Randomization (NIR), as described in [EIWW](https://arxiv.org/abs/2004.09458). We apply NIR, assuming the sensitivity model 𝒯₀ on a regression discontinuity design artificially constructed from test scores in early childhood (data from the Early Childhood Longitudinal Study).
+
+```julia
+julia> using RegressionDiscontinuity
+julia> using Empirikos
+julia> using MosekTools
+julia> ecls_tbl = RegressionDiscontinuity.raw_table(RegressionDiscontinuity.ECLS_EIWW())
+julia> Zs = NormalSample.(ecls_tbl.Z, minimum(ecls_tbl.SE))
+julia> ZsR = RunningVariable(Zs, -0.2, :≧)
+julia> Ys = ecls_tbl.Y
+julia> nir = NoiseInducedRandomization(; solver=Mosek.Optimizer)
+julia> nir_it = fit(nir, ZsR, Ys)
+```
+
+```julia
+RD analysis with Noise Induced Randomization (NIR)
+────────────────────────────────────────────────────────────────────────────────────────
+                            τ̂         se   max bias  Lower 95%  Upper 95%  CI halfwidth
+────────────────────────────────────────────────────────────────────────────────────────
+Weighted RD estimand  0.355071  0.0232147  0.0109893   0.304914   0.405229     0.0501575
+────────────────────────────────────────────────────────────────────────────────────────
+```
+
 ### McCrary Density Test
 
 The following estimates a test of manipulation of the running variable based on [McCrary (2008)](https://www.sciencedirect.com/science/article/abs/pii/S0304407607001133). 
 
 ```julia
+julia> using RegressionDiscontinuity
 julia> fit(McCraryTest(), data.ZsR)
 ```
 

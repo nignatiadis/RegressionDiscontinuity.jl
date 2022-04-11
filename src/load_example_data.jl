@@ -18,6 +18,31 @@ end
 
 
 
+"""
+    ECLS_EIWW
 
-#oreopoulos_matrix, orepoulos_header = readdlm(oreopoulos_path, ',', Float64; header=true)
-# bla =
+A regression discontinuity design artificially constructed from test scores
+in early childhood using data from the Early Childhood Longitudinal Study (ECLS).
+
+The construction of this synthetic RDD is described in:
+> Eckles, Dean, Nikolaos Ignatiadis, Stefan Wager, and Han Wu.
+> "Noise-induced randomization in regression discontinuity designs."
+> arXiv preprint arXiv:2004.09458 (2022).
+
+
+The following technical report provides more details regarding the ECLS:
+
+> K. Tourangeau, C. Nord, T. Le, A.G. Sorongon, M.C. Hagedorn, P. Daly, and M. Najarian.
+> Early Childhood Longitudinal Study, Kindergarten Class of 2010-11 (ECLS-K:2011),
+> User’s Manual for the ECLS-K:2011 Kindergarten Data File and Electronic Codebook,
+> Public Version (NCES 2015-074).
+> Technical report, U.S. Department of Education. Washington, DC
+> National Center for Education Statistics, 2015.
+"""
+struct ECLS_EIWW <: Dataset end
+
+function raw_table(::ECLS_EIWW)
+    _path = joinpath(dirname(@__FILE__), "..", "data", "ecls_RD.csv")
+    matrix, header = readdlm(_path, ',', Float64; header=true)
+    columntable( (Z=matrix[:,1], Y = matrix[:,2], SE = matrix[:,3]))
+end
