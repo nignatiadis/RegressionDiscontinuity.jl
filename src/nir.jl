@@ -1,4 +1,4 @@
-using .Empirikos
+using Empirikos
 using Zygote
 using LinearFractional
 using StatsFuns
@@ -142,7 +142,8 @@ end
 
 function nir_default_convexclass(Zs::AbstractVector{<:Empirikos.AbstractNormalSample})
     z_min, z_max = extrema(response.(Zs))
-    DiscretePriorClass(range(z_min, stop=z_max, length=500))
+    std = Empirikos.std(Zs[1])
+    DiscretePriorClass(range(z_min - 2*std, stop=z_max+2*std, length=500))
 end
 
 function nir_default_discretizer(ZsR::RunningVariable{<:Empirikos.AbstractNormalSample})
@@ -154,6 +155,9 @@ function nir_default_discretizer(ZsR::RunningVariable{<:Empirikos.AbstractNormal
     ℓ, u = extrema(response.(Zs))
     ℓ = ℓ - ν/50
     u = u + ν/50
+
+    #u = min(u, cutoff + 3*ν)
+    #ℓ = max(ℓ, cutoff - 3*ν)
 
     _range_left = collect(RangeHelpers.range(start=below(ℓ), stop=cutoff, step = ν/20 ))
     _range_right = collect(RangeHelpers.range(start=cutoff, stop=above(u), step = ν/20))
@@ -272,17 +276,21 @@ function nir_weights_quadprog(nir::NoiseInducedRandomization, Zs)
     add_bias_constraint!(model, nir, h₊, h₋, t)
 
     marginal_probs_treated = pdf.(nir.plugin_G, Zs_levels_treated)
+
     marginal_probs_untreated = pdf.(nir.plugin_G, Zs_levels_untreated)
 
     #return (marginal_probs_treated,marginal_probs_untreated, nir.plugin_G, Zs_levels_treated, Zs_levels_untreated)
     @constraint(model, dot(marginal_probs_treated, γ₊.(Zs_levels_treated)) ==  1)
     @constraint(model, dot(marginal_probs_untreated, γ₋.(Zs_levels_untreated)) ==  1)
+    
+    std_multiplier_treated = sqrt.(marginal_probs_treated) 
+    std_multiplier_untreated = sqrt.(marginal_probs_untreated) 
 
     @variable(model, s)
     @constraint(model, [s;
                         t;
-                        sqrt(σ_squared/n) .* γ₊.(nir.discretizer.treated) .* sqrt.(marginal_probs_treated);
-                        sqrt(σ_squared/n) .* γ₋.(nir.discretizer.untreated) .* sqrt.(marginal_probs_untreated)
+                        sqrt(σ_squared/n) .* γ₊.(nir.discretizer.treated) .* std_multiplier_treated;
+                        sqrt(σ_squared/n) .* γ₋.(nir.discretizer.untreated) .* std_multiplier_untreated
                     ]  ∈ SecondOrderCone())
 
     @objective(model, Min, s)
@@ -319,39 +327,46 @@ function nir_maxbias(nir::NoiseInducedRandomization{<:ConstantTarget}, γs, Zs)
     hminus = γs.h₋.(us)
 
     π = Empirikos.prior_variable!(bias_model, convexclass)
+    π_var = getfield.(π.finite_param, :vref)
     _nparams = Empirikos.nparams(convexclass)
 
-    @variable(bias_model, α[1:_nparams] >= 0)
+    @variable(bias_model.model, α[1:_nparams] >= 0)
 
     dkw_band = StatsBase.fit(nir.flocalization, Zs)
     Empirikos.flocalization_constraint!(bias_model, dkw_band, π)
 
 
-    @constraint(bias_model.model, dot(π.finite_param, hplus) == 1)
+    @constraint(bias_model.model, dot(π_var, hplus) == 1)
 
-    @objective(bias_model.model, JuMP.MOI.MAX_SENSE, dot(π.finite_param, hminus))
+    @objective(bias_model.model, JuMP.MOI.MAX_SENSE, dot(π_var, hminus))
     optimize!(bias_model)
-
+    Empirikos.check_moi_optimal(bias_model)
     _ξ_max = JuMP.objective_value(bias_model)
 
-    @objective(bias_model.model, JuMP.MOI.MIN_SENSE, dot(π.finite_param, hminus))
+    @objective(bias_model.model, JuMP.MOI.MIN_SENSE, dot(π_var, hminus))
     optimize!(bias_model)
+    Empirikos.check_moi_optimal(bias_model)
     _ξ_min = JuMP.objective_value(bias_model)
 
-    @constraint(bias_model.model, α .<= M.*π.finite_param)
+    @constraint(bias_model.model, α .<= M.*π_var)
 
+    _fudge = (_ξ_max - _ξ_min) / nir.maxbias_opt_bisection / 10
+    _ξ_min = _ξ_min + _fudge 
+    _ξ_max = _ξ_max - _fudge
     ξ = _ξ_min
     ξs = range(_ξ_min; stop=_ξ_max, length=nir.maxbias_opt_bisection)
     max_vals = zeros(length(ξs))
     #min_vals = zeros(length(ξs))
 
-    @constraint(bias_model.model, parametric_constraint, dot(π.finite_param, hminus) == _ξ_min)
+    @constraint(bias_model.model, parametric_constraint, dot(π_var, hminus) == _ξ_min)
+
 
     for (i, ξ) in enumerate(ξs)
         JuMP.set_normalized_rhs(parametric_constraint, ξ)
         @objective(bias_model.model, JuMP.MOI.MAX_SENSE, dot(α, hplus) - dot(α, hminus)/ξ)
-        optimize!(bias_model)
-        max_vals[i] = JuMP.objective_value(bias_model)
+        optimize!(bias_model.model)
+        Empirikos.check_moi_optimal(bias_model)
+        max_vals[i] = JuMP.objective_value(bias_model.model)
 
         #@objective(bias_model.model, JuMP.MOI.MIN_SENSE, dot(α, hplus) - dot(α, hminus)/ξ)
         #optimize!(bias_model)
@@ -361,8 +376,9 @@ function nir_maxbias(nir::NoiseInducedRandomization{<:ConstantTarget}, γs, Zs)
     ξ = ξs[argmax(max_vals)]
     JuMP.set_normalized_rhs(parametric_constraint, ξ)
     @objective(bias_model.model, JuMP.MOI.MAX_SENSE, dot(α, hplus) - dot(α, hminus)/ξ)
-    optimize!(bias_model)
-    maxbias = JuMP.objective_value(bias_model)
+    optimize!(bias_model.model)
+    Empirikos.check_moi_optimal(bias_model)
+    maxbias = JuMP.objective_value(bias_model.model)
 
     (maxbias=maxbias, bias_model=bias_model, ξ=ξ, ξ_min = _ξ_min, ξ_max = _ξ_max,
      ξs = ξs, grid_vals = max_vals)

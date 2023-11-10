@@ -34,10 +34,7 @@ include("imbens_kalyanaraman.jl")
 include("local_linear.jl")
 include("minmax_optimal.jl")
 include("density_test.jl")
-
-function __init__()
-    @require Empirikos="cab608d6-c565-4ea1-96d6-ce5441ba21b0" include("nir.jl")
-end
+include("nir.jl")
 
 
 export fit
