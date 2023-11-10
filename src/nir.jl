@@ -156,6 +156,9 @@ function nir_default_discretizer(ZsR::RunningVariable{<:Empirikos.AbstractNormal
     ℓ = ℓ - ν/50
     u = u + ν/50
 
+    #u = min(u, cutoff + 3*ν)
+    #ℓ = max(ℓ, cutoff - 3*ν)
+
     _range_left = collect(RangeHelpers.range(start=below(ℓ), stop=cutoff, step = ν/20 ))
     _range_right = collect(RangeHelpers.range(start=cutoff, stop=above(u), step = ν/20))
 
@@ -279,12 +282,15 @@ function nir_weights_quadprog(nir::NoiseInducedRandomization, Zs)
     #return (marginal_probs_treated,marginal_probs_untreated, nir.plugin_G, Zs_levels_treated, Zs_levels_untreated)
     @constraint(model, dot(marginal_probs_treated, γ₊.(Zs_levels_treated)) ==  1)
     @constraint(model, dot(marginal_probs_untreated, γ₋.(Zs_levels_untreated)) ==  1)
+    
+    std_multiplier_treated = sqrt.(marginal_probs_treated) 
+    std_multiplier_untreated = sqrt.(marginal_probs_untreated) 
 
     @variable(model, s)
     @constraint(model, [s;
                         t;
-                        sqrt(σ_squared/n) .* γ₊.(nir.discretizer.treated) .* sqrt.(marginal_probs_treated);
-                        sqrt(σ_squared/n) .* γ₋.(nir.discretizer.untreated) .* sqrt.(marginal_probs_untreated)
+                        sqrt(σ_squared/n) .* γ₊.(nir.discretizer.treated) .* std_multiplier_treated;
+                        sqrt(σ_squared/n) .* γ₋.(nir.discretizer.untreated) .* std_multiplier_untreated
                     ]  ∈ SecondOrderCone())
 
     @objective(model, Min, s)
