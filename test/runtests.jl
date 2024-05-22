@@ -7,3 +7,7 @@ using Test
     include("test_density_test.jl")
     include("test_minmax.jl")
 end
+
+@testset "Noise-Induced Randomization" begin 
+    include("test_nir.jl")
+end

@@ -6,7 +6,7 @@ function binwidth(::McCraryBinwidth, Zs::RunningVariable)
     2 * std(Zs) / sqrt(length(Zs))
 end
 
-function StatsDiscretizations.samplehull_discretizer(Zs::RunningVariable, b)
+function _samplehull_discretizer(Zs::RunningVariable, b)
     b = binwidth(b, Zs)
     rmin, rmax = extrema(Zs)
     cutoff = Zs.cutoff

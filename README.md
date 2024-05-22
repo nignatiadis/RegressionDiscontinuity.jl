@@ -16,6 +16,10 @@
 </p>
 
 
+## **Warning**
+
+This package is still experimental (and results should be double-checked for any empirical work). Please report any issues you encounter.
+
 
 ## Examples
 
@@ -42,11 +46,12 @@ Local linear regression for regression discontinuity design
        ⋅⋅⋅⋅ Imbens Kalyanaraman bandwidth
        ⋅⋅⋅⋅ Eicker White Huber variance
 ────────────────────────────────────────────────────────────────────────────────────────────────
-                          h       τ̂         se         bias     z   p-val  Lower 95%  Upper 95%
+                          h        τ̂         se         bias     z   p-val  Lower 95%  Upper 95%
 ────────────────────────────────────────────────────────────────────────────────────────────────
-Sharp RD estimand  0.462024  0.08077  0.0087317  unaccounted  9.25  <1e-99  0.0802225  0.0813175
+Sharp RD estimand  0.462024  0.08077  0.0087317  unaccounted  9.25  <1e-99  0.0636562  0.0978838
 ────────────────────────────────────────────────────────────────────────────────────────────────
 ```
+
 ### Min-Max Optimal Estimator
 
 The following estimates the sharp RDD estimate for the min-max optimal
@@ -87,7 +92,7 @@ julia> nir = NoiseInducedRandomization(; solver=Mosek.Optimizer)
 julia> nir_fit = fit(nir, ZsR, Ys)
 ```
 
-```julia
+```
 RD analysis with Noise Induced Randomization (NIR)
 ────────────────────────────────────────────────────────────────────────────────────────
                             τ̂         se   max bias  Lower 95%  Upper 95%  CI halfwidth

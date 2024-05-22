@@ -23,7 +23,7 @@ struct RunningVariable{T,C,VT} <: AbstractRunningVariable{T,C,VT}
         elseif treated ∈ [:<=; :≤; :≦]
             treated = :≤
         end
-        Ws = broadcast(getfield(Base, treated), Zs, cutoff)
+        Ws = broadcast(getfield(Base, treated), StatsDiscretizations.unwrap.(Zs), cutoff)
         new(Zs, cutoff, treated, Ws)
     end
 end
@@ -149,7 +149,10 @@ end
 
     nbins = get(plotattributes, :bins, StatsBase.sturges(length(ZsR)))
 
-    fitted_hist = fit(Histogram, ZsR; nbins=nbins)
+    min_Z, max_Z = extrema(ZsR)
+    bin_width = (max_Z - min_Z) * 1.01 / nbins
+
+    fitted_hist = fit(Histogram, ZsR; nbins=nbins, bin_width=bin_width)
 
     yguide --> "Frequency"
     xguide --> "Running variable"
@@ -281,8 +284,10 @@ end
 
     ZsR = rdd_data.ZsR
     nbins = get(plotattributes, :bins, StatsBase.sturges(length(ZsR)))
+    min_Z, max_Z = extrema(ZsR)
+    bin_width = (max_Z - min_Z) * 1.01 / nbins
 
-    fitted_hist = fit(Histogram, ZsR; nbins=nbins)
+    fitted_hist = fit(Histogram, ZsR; nbins=nbins, bin_width=bin_width)
     zs = StatsBase.midpoints(fitted_hist.edges[1])
     err_length = (zs[2] - zs[1]) / 2
     binidx = StatsBase.binindex.(Ref(fitted_hist), ZsR)

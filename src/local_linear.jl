@@ -33,7 +33,7 @@ end
 
 fit(method::SharpRD, ZsR::RunningVariable, Y) = fit(method, RDData(Y, ZsR))
 
-function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
+function fit(method::NaiveLocalLinearRD, rddata::RDData; α=0.05)
     c = rddata.cutoff
     kernel = method.kernel
     variance = method.variance
@@ -51,13 +51,14 @@ function fit(method::NaiveLocalLinearRD, rddata::RDData; level=0.95)
 
     fitted_lm = fit(LinearModel, @formula(Ys ~ Ws * ZsC), rddata_filt, wts = wts)
 
+    level = 1-α
     tau_est = coef(fitted_lm)[2]
     se_est = sqrt(var(variance, fitted_lm))
     γs = linearweights(fitted_lm)
 
     z = tau_est/se_est
     pval = 1-cdf(Normal(), abs(z))
-    z_quantile = quantile(Normal(), 1-level/2)
+    z_quantile = quantile(Normal(), 1-α/2)
     ci = Interval(tau_est - se_est*z_quantile, tau_est + se_est*z_quantile)
     # as in GLM.jl
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)

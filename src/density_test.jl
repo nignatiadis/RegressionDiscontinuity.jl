@@ -119,7 +119,7 @@ function fit(method::McCraryTest, Zs::RunningVariable)
     kernel(t) = pdf(method.kernel, t)
 
     b = binwidth(method.binwidth, Zs)
-    discr = StatsDiscretizations.samplehull_discretizer(Zs, b)
+    discr = _samplehull_discretizer(Zs, b)
 
 
     Zs_untreated = Zs[Untreated()]

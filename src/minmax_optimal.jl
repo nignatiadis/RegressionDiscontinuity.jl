@@ -137,3 +137,6 @@ function Base.show(io::IO, rdd_fit::RegressionDiscontinuity.FittedOptRD)
     println(io, "Max Second Derivative Bound: ", string(rdd_fit.B))
     Base.show(io, rdd_fit.coeftable)
 end
+
+
+linearweights(fitted::FittedOptRD) = fitted.weights

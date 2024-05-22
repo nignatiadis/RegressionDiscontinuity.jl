@@ -7,7 +7,7 @@ import Base: size, getindex, getproperty, propertynames, show
 using DelimitedFiles
 using LinearAlgebra
 using Statistics; import Statistics: var
-
+using DataFrames 
 # Julia Registry packages
 using Distributions
 using IntervalSets

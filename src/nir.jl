@@ -32,14 +32,6 @@ function Base.getproperty(obj::RunningVariable{<:EBayesSample}, sym::Symbol)
 end
 
 
-function StatsDiscretizations.unwrap(Z::EBayesSample)
-    response(Z)
-end
-
-function StatsDiscretizations.wrap(Z::EBayesSample, val)
-    @set Z.Z = val
-end
-
 export NoiseInducedRandomization
 
 struct NoiseInducedRandomization{RDT, T,D,F,G,P,V,S} <: RegressionDiscontinuity.SharpRD
@@ -118,19 +110,19 @@ function nir_default_discretizer(ZsR::RunningVariable{<:BinomialSample})
     ℓ = 0
     u = K
 
-    discr_all = FiniteSupportDiscretizer(0:1:K)
+    discr_all = FiniteGridDiscretizer(0:1:K)
     if ZsR.treated === :≥
-        discr_untreated = FiniteSupportDiscretizer(ℓ:1:(cutoff-1))
-        discr_treated = FiniteSupportDiscretizer(cutoff:1:u)
+        discr_untreated = FiniteGridDiscretizer(ℓ:1:(cutoff-1))
+        discr_treated = FiniteGridDiscretizer(cutoff:1:u)
     elseif ZsR.treated === :>
-        discr_untreated = FiniteSupportDiscretizer(ℓ:1:cutoff)
-        discr_treated = FiniteSupportDiscretizer((cutoff+1):1:u)
+        discr_untreated = FiniteGridDiscretizer(ℓ:1:cutoff)
+        discr_treated = FiniteGridDiscretizer((cutoff+1):1:u)
     elseif ZsR.treated === :≤
-        discr_treated = FiniteSupportDiscretizer(ℓ:1:cutoff)
-        discr_untreated = FiniteSupportDiscretizer((cutoff+1):1:u)
+        discr_treated = FiniteGridDiscretizer(ℓ:1:cutoff)
+        discr_untreated = FiniteGridDiscretizer((cutoff+1):1:u)
     elseif ZsR.treated === :<
-        discr_treated = FiniteSupportDiscretizer(ℓ:1:(cutoff-1))
-        discr_untreated = FiniteSupportDiscretizer(cutoff:1:u)
+        discr_treated = FiniteGridDiscretizer(ℓ:1:(cutoff-1))
+        discr_untreated = FiniteGridDiscretizer(cutoff:1:u)
     else
         throw(ArgumentError("RunningVariable:treated can only be one of :>, :<, :≥, :≤"))
     end
@@ -192,7 +184,6 @@ end
 
 function initialize(nir::NoiseInducedRandomization, ZsR, Ys)
     Zs = ZsR.Zs
-    cutoff = ZsR.cutoff
 
     n = nobs(Zs)
     if nir.flocalization === :default
